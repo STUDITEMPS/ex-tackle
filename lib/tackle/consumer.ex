@@ -36,7 +36,7 @@ defmodule Tackle.Consumer do
         retry_delay = options[:retry_delay] || 10
         retry_limit = options[:retry_limit] || 10
 
-        channel = {:ok, connection} = Tackle.Connection.open(connection_id, url)
+        {:ok, connection} = Tackle.Connection.open(connection_id, url)
         channel = Tackle.Channel.create(connection, prefetch_count)
 
         service_exchange_name =
