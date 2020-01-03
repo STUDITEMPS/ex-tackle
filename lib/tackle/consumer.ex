@@ -62,6 +62,10 @@ defmodule Tackle.Consumer do
       def retry_dead_messages(how_many \\ 1) do
         Tackle.Consumer.Executor.republish_dead_messages(@name, how_many)
       end
+
+      def routing_key do
+        Tackle.Consumer.Executor.option(@name, :routing_key)
+      end
     end
   end
 end

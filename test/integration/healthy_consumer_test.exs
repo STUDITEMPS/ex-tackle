@@ -36,6 +36,10 @@ defmodule Tackle.HealthyConsumerTest do
   end
 
   describe "healthy consumer" do
+    it "knows the routing key" do
+      assert TestConsumer.routing_key() == "health"
+    end
+
     it "receives a published message on the exchange" do
       Tackle.publish("Hi!", @publish_options)
 
