@@ -4,6 +4,10 @@ defmodule Tackle.Consumer.Executor do
   # let GenServer 1 sec for cleanup work
   use GenServer, shutdown: 1_000
 
+  def republish_dead_messages(name_or_pid, how_many) do
+    GenServer.cast(name_or_pid, {:republish_dead_messages, how_many})
+  end
+
   def start_link(name, handler_module, overrides) do
     state = Enum.into(overrides, %{handler: handler_module})
 
@@ -77,10 +81,6 @@ defmodule Tackle.Consumer.Executor do
       {:ok, channel}
     end
   end
-
-  #############
-  # Callbacks #
-  #############
 
   # Close channel on exit
   def terminate(_reason, state) do
@@ -205,5 +205,17 @@ defmodule Tackle.Consumer.Executor do
         options
       )
     end
+  end
+
+  def handle_cast({:republish_dead_messages, how_many}, state) do
+    Tackle.Republisher.republish(
+      state.rabbitmq_url,
+      state.dead_queue,
+      state.service_exchange,
+      state.routing_key,
+      how_many
+    )
+
+    {:noreply, state}
   end
 end

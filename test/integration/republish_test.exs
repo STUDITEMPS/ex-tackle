@@ -88,13 +88,7 @@ defmodule Tackle.RepublishTest do
       {:ok, _} = FixedConsumer.start_link()
       :timer.sleep(1000)
 
-      Tackle.republish(%{
-        url: "amqp://localhost",
-        queue: @dead_queue,
-        exchange: "ex-tackle.test-exchange",
-        routing_key: "test-messages",
-        count: 2
-      })
+      FixedConsumer.retry_dead_messages(2)
 
       :timer.sleep(2000)
     end
