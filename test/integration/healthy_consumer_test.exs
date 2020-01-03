@@ -5,8 +5,8 @@ defmodule Tackle.HealthyConsumerTest do
 
   defmodule TestConsumer do
     use Tackle.Consumer,
-      url: "amqp://localhost",
-      exchange: "ex-tackle.test-exchange",
+      rabbitmq_url: "amqp://localhost",
+      remote_exchange: "ex-tackle.test-exchange",
       routing_key: "health",
       service: "ex-tackle.healthy-service"
 
@@ -16,8 +16,8 @@ defmodule Tackle.HealthyConsumerTest do
   end
 
   @publish_options %{
-    url: "amqp://localhost",
-    exchange: "ex-tackle.test-exchange",
+    rabbitmq_url: "amqp://localhost",
+    remote_exchange: "ex-tackle.test-exchange",
     routing_key: "health"
   }
 

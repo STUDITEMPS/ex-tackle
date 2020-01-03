@@ -3,8 +3,8 @@ defmodule Tackle.DeadQueueTest do
 
   defmodule DeadConsumer do
     use Tackle.Consumer,
-      url: "amqp://localhost",
-      exchange: "ex-tackle.test-exchange",
+      rabbitmq_url: "amqp://localhost",
+      remote_exchange: "ex-tackle.test-exchange",
       routing_key: "test-messages",
       service: "ex-tackle.dead-service",
       retry_delay: 1,
@@ -17,8 +17,8 @@ defmodule Tackle.DeadQueueTest do
   end
 
   @publish_options %{
-    url: "amqp://localhost",
-    exchange: "ex-tackle.test-exchange",
+    rabbitmq_url: "amqp://localhost",
+    remote_exchange: "ex-tackle.test-exchange",
     routing_key: "test-messages"
   }
 

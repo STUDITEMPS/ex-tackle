@@ -3,8 +3,8 @@ defmodule Tackle.ParallelMessageHandling_2_Test do
 
   defmodule TestConsumer do
     use Tackle.Consumer,
-      url: "amqp://localhost",
-      exchange: "ex-tackle.test-prefetch-2-exchange",
+      rabbitmq_url: "amqp://localhost",
+      remote_exchange: "ex-tackle.test-prefetch-2-exchange",
       routing_key: "prefetch",
       service: "ex-tackle.prefetch-count-service",
       prefetch_count: 2
@@ -21,8 +21,8 @@ defmodule Tackle.ParallelMessageHandling_2_Test do
   end
 
   @publish_options %{
-    url: "amqp://localhost",
-    exchange: "ex-tackle.test-prefetch-2-exchange",
+    rabbitmq_url: "amqp://localhost",
+    remote_exchange: "ex-tackle.test-prefetch-2-exchange",
     routing_key: "prefetch"
   }
 
