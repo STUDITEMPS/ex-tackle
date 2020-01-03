@@ -16,7 +16,7 @@ defmodule Tackle.Consumer do
 
     quote location: :keep, generated: true do
       @opts unquote(opts)
-      @name __MODULE__
+      @name @opts[:name] || __MODULE__
       @behaviour Tackle.Consumer.Behaviour
 
       # Adds default handle and on_error functions
@@ -60,7 +60,7 @@ defmodule Tackle.Consumer do
       defoverridable(on_error: 5)
 
       def retry_dead_messages(how_many \\ 1) do
-        Tackle.Consumer.Executor.republish_dead_messages(__MODULE__, how_many)
+        Tackle.Consumer.Executor.republish_dead_messages(@name, how_many)
       end
     end
   end
