@@ -1,29 +1,74 @@
 defmodule Tackle.Consumer.Executor do
-  # let genserver 1 sec for cleanup work
+  require Logger
+
+  # let GenServer 1 sec for cleanup work
   use GenServer, shutdown: 1_000
 
   def start_link(name, handler_module, overrides) do
-    overrides = Enum.into(overrides, %{})
+    state = Enum.into(overrides, %{handler: handler_module})
 
-    state = %{overrides | handler_module: handler_module, name: name}
     GenServer.start_link(__MODULE__, state, name: name)
   end
 
   def init(options) do
-    options = Map.merge(default_options(), options)
+    # so, we can cleanup with terminate callback
+    Process.flag(:trap_exit, true)
 
-    setup(options)
+    state =
+      options
+      |> Tackle.Consumer.State.configure!()
+      |> start!()
+
+    {:ok, state}
   end
 
-  defp setup(options) do
-    validate_options!(options)
-
+  defp start!(state) do
     {:ok, channel} =
       setup_connection_channel(
-        options.connection_id,
-        options.rabbitmq_url,
-        options.prefetch_count
+        state.connection_id,
+        state.rabbitmq_url,
+        state.prefetch_count
       )
+
+    service_exchange_name =
+      Tackle.Exchange.create_service_exchange(channel, state.service, state.routing_key)
+
+    Tackle.Exchange.bind_to_remote(
+      channel,
+      service_exchange_name,
+      state.remote_exchange,
+      state.routing_key
+    )
+
+    consume_from_queue = Tackle.Queue.create_queue(channel, service_exchange_name)
+
+    Tackle.Exchange.bind_to_queue(
+      channel,
+      service_exchange_name,
+      consume_from_queue,
+      state.routing_key
+    )
+
+    delay_queue_name =
+      Tackle.Queue.create_delay_queue(
+        channel,
+        service_exchange_name,
+        state.routing_key,
+        state.retry_delay
+      )
+
+    dead_queue_name = Tackle.Queue.create_dead_queue(channel, service_exchange_name)
+
+    # start actual consuming
+    {:ok, _consumer_tag} = AMQP.Basic.consume(channel, consume_from_queue)
+
+    Tackle.Consumer.State.started(state,
+      channel: channel,
+      service_exchange: service_exchange_name,
+      consume_queue: consume_from_queue,
+      delay_queue: delay_queue_name,
+      dead_queue: dead_queue_name
+    )
   end
 
   defp setup_connection_channel(connection_id, url, prefetch_count) do
@@ -33,18 +78,132 @@ defmodule Tackle.Consumer.Executor do
     end
   end
 
-  # TODO: implement me
-  defp validate_options!(_options), do: :ok
+  #############
+  # Callbacks #
+  #############
 
-  defp default_options do
-    %{
-      connection_id: :default,
-      prefetch_count: 1,
-      # in seconds
-      retry_delay: 10,
-      retry_limit: 10,
-      rabbitmq_url: Application.get_env(:tackle, :rabbitmq_url),
-      service: Application.get_env(:tackle, :service)
-    }
+  # Close channel on exit
+  def terminate(_reason, state) do
+    state.channel |> Tackle.Channel.close()
+  end
+
+  def handle_info({:basic_consume_ok, _}, state), do: {:noreply, state}
+  def handle_info({:basic_cancel, _}, state), do: {:stop, :normal, state}
+  def handle_info({:basic_cancel_ok, _}, state), do: {:stop, :normal, state}
+
+  def handle_info({:basic_deliver, payload, %{delivery_tag: tag} = message_metadata}, state) do
+    consume_callback = fn ->
+      state.handler.handle_message(payload)
+      AMQP.Basic.ack(state.channel, tag)
+    end
+
+    error_callback = fn reason ->
+      Logger.error("Consumption failed: #{inspect(reason)}; payload: #{inspect(payload)}")
+      retry(state, payload, message_metadata, reason)
+      AMQP.Basic.nack(state.channel, tag, multiple: false, requeue: false)
+    end
+
+    spawn(fn -> delivery_handler(consume_callback, error_callback) end)
+
+    {:noreply, state}
+  end
+
+  def delivery_handler(consume_callback, error_callback) do
+    Process.flag(:trap_exit, true)
+
+    me = self()
+    safe_consumer = fn -> safe_consumer(me, consume_callback) end
+
+    pid = spawn_link(safe_consumer)
+
+    receive do
+      :ok ->
+        :ok
+
+      {:retry, reason} ->
+        error_callback.(reason)
+
+      {:EXIT, ^pid, :normal} ->
+        :ok
+
+      {:EXIT, ^pid, :shutdown} ->
+        :ok
+
+      {:EXIT, ^pid, {:shutdown, _reason}} ->
+        :ok
+
+      {:EXIT, ^pid, reason} ->
+        error_callback.(reason)
+    end
+  end
+
+  defp safe_consumer(receiver, consume_callback) do
+    # try not to die, so we do not get all the notifications
+    result =
+      try do
+        consume_callback.()
+        :ok
+      catch
+        # retry on exit and throw(:retry) or throw({:retry, reason})
+        :throw, :retry ->
+          {:retry, {:retry_requested, __STACKTRACE__}}
+
+        :throw, {:retry, reason} ->
+          {:retry, {reason, __STACKTRACE__}}
+      end
+
+    # send result back to the receiver, so we can retry if needed
+    send(receiver, result)
+  end
+
+  defp retry(
+         state,
+         payload,
+         %{headers: headers} = message_metadata,
+         error_reason
+       ) do
+    retry_count = Tackle.DelayedRetry.retry_count_from_headers(headers)
+
+    options = [
+      persistent: true,
+      headers: [
+        retry_count: retry_count + 1
+      ]
+    ]
+
+    Task.start(fn ->
+      current_attempt = retry_count + 1
+      max_number_of_attemts = state.retry_limit + 1
+      {may_be_erlang_error, stacktrace} = error_reason
+      elixir_exception = Exception.normalize(:error, may_be_erlang_error, stacktrace)
+
+      state.handler.on_error(
+        payload,
+        message_metadata,
+        {elixir_exception, stacktrace},
+        current_attempt,
+        max_number_of_attemts
+      )
+    end)
+
+    if retry_count < state.retry_limit do
+      Logger.debug("Sending message to a delay queue")
+
+      Tackle.DelayedRetry.publish(
+        state.rabbitmq_url,
+        state.delay_queue,
+        payload,
+        options
+      )
+    else
+      Logger.debug("Sending message to a dead messages queue")
+
+      Tackle.DelayedRetry.publish(
+        state.rabbitmq_url,
+        state.dead_queue,
+        payload,
+        options
+      )
+    end
   end
 end

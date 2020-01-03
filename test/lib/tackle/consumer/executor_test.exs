@@ -1,20 +1,6 @@
-defmodule Tackle.DeliveryHandlerTest do
+defmodule Tackle.Consumer.ExecutorTest do
   use ExSpec
-
-  # This is needed for delivery_handler to be generated.
-  defmodule TestConsumer do
-    require Logger
-
-    use Tackle.Consumer,
-      url: "amqp://localhost",
-      exchange: "ex-tackle.test-exchange",
-      routing_key: "test-messages",
-      service: "ex-tackle.test-service"
-
-    def handle_message(_message) do
-      Logger.debug("here")
-    end
-  end
+  alias Tackle.Consumer.Executor, as: TestConsumer
 
   describe "delivery" do
     it "consume pass" do
@@ -30,23 +16,20 @@ defmodule Tackle.DeliveryHandlerTest do
         Code.eval_quoted(quote do: 1 / 0)
       end
 
-      assert :badarith ==
+      assert {:badarith, _stacktrace} =
                TestConsumer.delivery_handler(bad_function, fn reason -> reason end)
-               |> elem(0)
     end
 
     it "consume raises" do
-      assert %RuntimeError{message: "foo"} ==
+      assert {%RuntimeError{message: "foo"}, _stacktrace} =
                TestConsumer.delivery_handler(fn -> raise "foo" end, fn reason -> reason end)
-               |> elem(0)
     end
 
     it "consume throws" do
-      assert {:nocatch, {:error, 12}} ==
+      assert {{:nocatch, {:error, 12}}, _stacktrace} =
                TestConsumer.delivery_handler(fn -> throw({:error, 12}) end, fn reason ->
                  reason
                end)
-               |> elem(0)
     end
 
     it "consume signals" do
