@@ -45,6 +45,19 @@ defmodule Tackle do
     Tackle.Republisher.republish(rabbitmq_url, queue, remote_exchange, routing_key, count)
   end
 
+  def execute(rabbitmq_url, fun) when is_binary(rabbitmq_url) and is_function(fun, 1) do
+    Logger.debug("Connecting to '#{Tackle.DebugHelper.safe_uri(rabbitmq_url)}'")
+    {:ok, connection} = AMQP.Connection.open(rabbitmq_url)
+    {:ok, channel} = AMQP.Channel.open(connection)
+
+    try do
+      fun.(channel)
+    after
+      AMQP.Channel.close(channel)
+      AMQP.Connection.close(connection)
+    end
+  end
+
   defp deprecate_old_options(options) do
     options =
       if options[:url] do

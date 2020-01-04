@@ -41,11 +41,7 @@ defmodule Support do
   end
 
   defp execute(fun) when is_function(fun, 1) do
-    {:ok, connection} = AMQP.Connection.open("amqp://localhost")
-    {:ok, channel} = AMQP.Channel.open(connection)
-    result = fun.(channel)
-    AMQP.Connection.close(connection)
-    result
+    Tackle.execute("amqp://localhost", fun)
   end
 
   defmodule MessageTrace do

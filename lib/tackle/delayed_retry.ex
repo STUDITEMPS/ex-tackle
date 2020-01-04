@@ -7,14 +7,9 @@ defmodule Tackle.DelayedRetry do
   def retry_count_from_headers([{"retry_count", :long, count} | _tail]), do: count
   def retry_count_from_headers([_ | tail]), do: retry_count_from_headers(tail)
 
-  def publish(url, queue, payload, options) do
-    Logger.debug("Connecting to '#{Tackle.DebugHelper.safe_uri(url)}'")
-
-    {:ok, connection} = AMQP.Connection.open(url)
-    {:ok, channel} = Channel.open(connection)
-
-    AMQP.Basic.publish(channel, "", queue, payload, options)
-
-    AMQP.Connection.close(connection)
+  def publish(rabbitmq_url, queue, payload, message_options) do
+    Tackle.execute(rabbitmq_url, fn channel ->
+      AMQP.Basic.publish(channel, "", queue, payload, message_options)
+    end)
   end
 end

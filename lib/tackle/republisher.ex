@@ -2,26 +2,21 @@ defmodule Tackle.Republisher do
   use AMQP
   require Logger
 
-  def republish(url, queue, exchange, routing_key, count) do
-    Logger.debug("Connecting to '#{Tackle.DebugHelper.safe_uri(url)}'")
-    {:ok, connection} = AMQP.Connection.open(url)
-    channel = Tackle.Channel.create(connection)
+  def republish(rabbitmq_url, dead_queue_name, exchange, routing_key, count) do
+    Tackle.execute(rabbitmq_url, fn channel ->
+      0..(count - 1)
+      |> Enum.each(fn index ->
+        IO.write("(#{index}) ")
 
-    0..(count - 1)
-    |> Enum.each(fn index ->
-      IO.write("(#{index}) ")
-
-      republish_one_message(channel, queue, exchange, routing_key)
+        republish_one_message(channel, dead_queue_name, exchange, routing_key)
+      end)
     end)
-
-    AMQP.Channel.close(channel)
-    AMQP.Connection.close(connection)
   end
 
-  defp republish_one_message(channel, queue, exchange, routing_key) do
+  defp republish_one_message(channel, dead_queue_name, exchange, routing_key) do
     IO.write("Fetching message... ")
 
-    case AMQP.Basic.get(channel, queue) do
+    case AMQP.Basic.get(channel, dead_queue_name) do
       {:empty, _} ->
         IO.puts("no more messages")
 
