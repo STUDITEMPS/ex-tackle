@@ -22,7 +22,7 @@ defmodule Tackle.ParallelMessageHandling_2_Test do
 
   @publish_options %{
     rabbitmq_url: "amqp://localhost",
-    remote_exchange: "ex-tackle.test-prefetch-2-exchange",
+    exchange: "ex-tackle.test-prefetch-2-exchange",
     routing_key: "prefetch"
   }
 

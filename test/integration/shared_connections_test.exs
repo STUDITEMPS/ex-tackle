@@ -35,13 +35,13 @@ defmodule Tackle.SharedConnection.Test do
 
   @publish_options_1 %{
     rabbitmq_url: "amqp://localhost",
-    remote_exchange: "ex-tackle.test-multiple-channels-exchange-1",
+    exchange: "ex-tackle.test-multiple-channels-exchange-1",
     routing_key: "multiple-channels"
   }
 
   @publish_options_2 %{
     rabbitmq_url: "amqp://localhost",
-    remote_exchange: "ex-tackle.test-multiple-channels-exchange-2",
+    exchange: "ex-tackle.test-multiple-channels-exchange-2",
     routing_key: "multiple-channels"
   }
 

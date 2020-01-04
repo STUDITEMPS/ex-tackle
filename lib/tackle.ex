@@ -14,35 +14,29 @@ defmodule Tackle do
   end
 
   def publish(message, options) when is_binary(message) do
-    options = deprecate_old_options(options)
-    rabbitmq_url = options[:rabbitmq_url]
-    remote_exchange = options[:remote_exchange]
-    routing_key = options[:routing_key]
+    options = options |> Enum.into(%{}) |> deprecate_old_options()
 
-    Logger.debug("Connecting to '#{Tackle.DebugHelper.safe_uri(rabbitmq_url)}'")
-    {:ok, connection} = AMQP.Connection.open(rabbitmq_url)
-    channel = Tackle.Channel.create(connection)
+    rabbitmq_url = Map.fetch!(options, :rabbitmq_url)
+    exchange = Map.fetch!(options, :exchange)
+    routing_key = Map.fetch!(options, :routing_key)
 
-    Logger.debug("Declaring an exchange '#{remote_exchange}'")
-
-    Tackle.Exchange.create_remote_exchange(channel, remote_exchange)
-
-    AMQP.Basic.publish(channel, remote_exchange, routing_key, message, persistent: true)
-
-    AMQP.Channel.close(channel)
-    AMQP.Connection.close(connection)
+    execute(rabbitmq_url, fn channel ->
+      Logger.debug("Declaring an exchange '#{exchange}'")
+      Tackle.Exchange.create(channel, exchange)
+      AMQP.Basic.publish(channel, exchange, routing_key, message, persistent: true)
+    end)
   end
 
   def republish(options) do
-    options = deprecate_old_options(options)
+    options = options |> Enum.into(%{}) |> deprecate_old_options()
 
-    rabbitmq_url = options[:rabbitmq_url]
-    queue = options[:queue]
-    remote_exchange = options[:remote_exchange]
-    routing_key = options[:routing_key]
+    rabbitmq_url = Map.fetch!(options, :rabbitmq_url)
+    queue = Map.fetch!(options, :queue)
+    exchange = Map.fetch!(options, :exchange)
+    routing_key = Map.fetch!(options, :routing_key)
     count = options[:count] || 1
 
-    Tackle.Republisher.republish(rabbitmq_url, queue, remote_exchange, routing_key, count)
+    Tackle.Republisher.republish(rabbitmq_url, queue, exchange, routing_key, count)
   end
 
   def execute(rabbitmq_url, fun) when is_binary(rabbitmq_url) and is_function(fun, 1) do
@@ -59,34 +53,17 @@ defmodule Tackle do
   end
 
   defp deprecate_old_options(options) do
-    options =
-      if options[:url] do
-        IO.warn(
-          "Setting RabbitMQ url using `url` option is deprecated. Use `rabbitmq_url` option instead",
-          Macro.Env.stacktrace(__ENV__)
-        )
+    if options[:url] do
+      IO.warn(
+        "Setting RabbitMQ url using `url` option is deprecated. Use `rabbitmq_url` option instead",
+        Macro.Env.stacktrace(__ENV__)
+      )
 
-        options
-        |> Map.put_new(:rabbitmq_url, options[:url])
-        |> Map.delete(:url)
-      else
-        options
-      end
-
-    options =
-      if options[:exchange] do
-        IO.warn(
-          "Setting Remote Exchange using `exchange` option is deprecated. Use `remote_exchange` option instead",
-          Macro.Env.stacktrace(__ENV__)
-        )
-
-        options
-        |> Map.put_new(:remote_exchange, options[:exchange])
-        |> Map.delete(:exchange)
-      else
-        options
-      end
-
-    options
+      options
+      |> Map.put_new(:rabbitmq_url, options[:url])
+      |> Map.delete(:url)
+    else
+      options
+    end
   end
 end

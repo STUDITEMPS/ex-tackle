@@ -17,7 +17,7 @@ defmodule Tackle.HealthyConsumerTest do
 
   @publish_options %{
     rabbitmq_url: "amqp://localhost",
-    remote_exchange: "ex-tackle.test-exchange",
+    exchange: "ex-tackle.test-exchange",
     routing_key: "health"
   }
 

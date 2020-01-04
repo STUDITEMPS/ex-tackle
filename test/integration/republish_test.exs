@@ -34,7 +34,7 @@ defmodule Tackle.RepublishTest do
 
   @publish_options %{
     rabbitmq_url: "amqp://localhost",
-    remote_exchange: "ex-tackle.test-exchange",
+    exchange: "ex-tackle.test-exchange",
     routing_key: "test-messages"
   }
 
@@ -44,6 +44,7 @@ defmodule Tackle.RepublishTest do
     reset_test_exchanges_and_queues()
 
     on_exit(fn ->
+      nil
       reset_test_exchanges_and_queues()
     end)
 

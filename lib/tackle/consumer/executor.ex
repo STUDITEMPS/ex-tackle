@@ -25,12 +25,14 @@ defmodule Tackle.Consumer.Executor do
     state =
       options
       |> Tackle.Consumer.State.configure!()
-      |> start!()
+      |> setup!()
 
     {:ok, state}
   end
 
-  defp start!(state) do
+  defp setup!(state) do
+    topology = state.topology
+
     {:ok, channel} =
       setup_connection_channel(
         state.connection_id,
@@ -38,45 +40,18 @@ defmodule Tackle.Consumer.Executor do
         state.prefetch_count
       )
 
-    service_exchange_name =
-      Tackle.Exchange.create_service_exchange(channel, state.service, state.routing_key)
+    Tackle.Exchange.create_message_exchange(channel, topology)
+    Tackle.Queue.create_consume_queue(channel, topology)
+    Tackle.Queue.create_delay_queue(channel, topology)
+    Tackle.Queue.create_dead_queue(channel, topology)
 
-    Tackle.Exchange.bind_to_remote(
-      channel,
-      service_exchange_name,
-      state.remote_exchange,
-      state.routing_key
-    )
-
-    consume_from_queue = Tackle.Queue.create_queue(channel, service_exchange_name)
-
-    Tackle.Exchange.bind_to_queue(
-      channel,
-      service_exchange_name,
-      consume_from_queue,
-      state.routing_key
-    )
-
-    delay_queue_name =
-      Tackle.Queue.create_delay_queue(
-        channel,
-        service_exchange_name,
-        state.routing_key,
-        state.retry_delay
-      )
-
-    dead_queue_name = Tackle.Queue.create_dead_queue(channel, service_exchange_name)
+    Tackle.Exchange.bind_message_exchange_to_remote(channel, topology)
+    Tackle.Exchange.bind_message_exchange_to_consume_queue(channel, topology)
 
     # start actual consuming
-    {:ok, _consumer_tag} = AMQP.Basic.consume(channel, consume_from_queue)
+    {:ok, _consumer_tag} = AMQP.Basic.consume(channel, topology.consume_queue)
 
-    Tackle.Consumer.State.started(state,
-      channel: channel,
-      service_exchange: service_exchange_name,
-      consume_queue: consume_from_queue,
-      delay_queue: delay_queue_name,
-      dead_queue: dead_queue_name
-    )
+    Tackle.Consumer.State.started(state, channel: channel)
   end
 
   defp setup_connection_channel(connection_id, url, prefetch_count) do
@@ -168,16 +143,9 @@ defmodule Tackle.Consumer.Executor do
        ) do
     retry_count = Tackle.DelayedRetry.retry_count_from_headers(headers)
 
-    options = [
-      persistent: true,
-      headers: [
-        retry_count: retry_count + 1
-      ]
-    ]
-
     Task.start(fn ->
       current_attempt = retry_count + 1
-      max_number_of_attemts = state.retry_limit + 1
+      max_number_of_attemts = state.topology.retry_limit + 1
       {may_be_erlang_error, stacktrace} = error_reason
       elixir_exception = Exception.normalize(:error, may_be_erlang_error, stacktrace)
 
@@ -190,23 +158,30 @@ defmodule Tackle.Consumer.Executor do
       )
     end)
 
-    if retry_count < state.retry_limit do
+    retry_message_options = [
+      persistent: true,
+      headers: [
+        retry_count: retry_count + 1
+      ]
+    ]
+
+    if retry_count < state.topology.retry_limit do
       Logger.debug("Sending message to a delay queue")
 
       Tackle.DelayedRetry.publish(
         state.rabbitmq_url,
-        state.delay_queue,
+        state.topology.delay_queue,
         payload,
-        options
+        retry_message_options
       )
     else
       Logger.debug("Sending message to a dead messages queue")
 
       Tackle.DelayedRetry.publish(
         state.rabbitmq_url,
-        state.dead_queue,
+        state.topology.dead_queue,
         payload,
-        options
+        retry_message_options
       )
     end
   end
@@ -214,9 +189,9 @@ defmodule Tackle.Consumer.Executor do
   def handle_cast({:republish_dead_messages, how_many}, state) do
     Tackle.Republisher.republish(
       state.rabbitmq_url,
-      state.dead_queue,
-      state.service_exchange,
-      state.routing_key,
+      state.topology.dead_queue,
+      state.topology.message_exchange,
+      state.topology.routing_key,
       how_many
     )
 
