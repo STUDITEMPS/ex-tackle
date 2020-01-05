@@ -8,7 +8,9 @@ defmodule Tackle.Mixfile do
       elixir: "~> 1.6",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: preferred_cli_env()
     ]
   end
 
@@ -19,7 +21,17 @@ defmodule Tackle.Mixfile do
   defp deps do
     [
       {:amqp, "~> 0.3"},
-      {:ex_spec, "~> 2.0", only: :test}
+      {:ex_spec, "~> 2.0", only: :test},
+      {:excoveralls, "~> 0.10", only: :test}
+    ]
+  end
+
+  defp preferred_cli_env do
+    [
+      coveralls: :test,
+      "coveralls.detail": :test,
+      "coveralls.post": :test,
+      "coveralls.html": :test
     ]
   end
 end
