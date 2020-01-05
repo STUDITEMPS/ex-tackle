@@ -8,10 +8,6 @@ defmodule Tackle.Consumer.Executor do
     GenServer.cast(name_or_pid, {:republish_dead_messages, how_many})
   end
 
-  def option(name_or_pid, option_name) do
-    GenServer.call(name_or_pid, {:option, option_name})
-  end
-
   def start_link(name, handler_module, overrides) do
     state = Enum.into(overrides, %{handler: handler_module})
 

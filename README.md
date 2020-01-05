@@ -1,7 +1,5 @@
 # Tackle
 
-[![Build Status](https://semaphoreci.com/api/v1/projects/ed643936-2795-4ac4-b225-7d33947d4a54/862273/badge.svg)](https://semaphoreci.com/renderedtext/ex-tackle)
-
 Tackles the problem of processing asynchronous jobs in reliable manner
 by relying on RabbitMQ.
 
@@ -40,7 +38,7 @@ To publish a message to an exchange:
 
 ``` elixir
 options = %{
-  url: "amqp://localhost",
+  rabbitmq_url: "amqp://localhost",
   exchange: "test-exchange",
   routing_key: "test-messages",
 }
@@ -55,8 +53,8 @@ First, declare a consumer module:
 ``` elixir
 defmodule TestConsumer do
   use Tackle.Consumer,
-    url: "amqp://localhost",
-    exchange: "test-exchange",
+    rabbitmq_url: "amqp://localhost",
+    remote_exchange: "test-exchange",
     routing_key: "test-messages",
     service: "my-service"
 
@@ -71,7 +69,40 @@ end
 And then start it to consume messages:
 
 ``` elixir
-TestConsumer.start_link
+TestConsumer.start_link()
+```
+
+### Further options for the consumer are:
+* `retry` is either `false` or a list `[delay: 3, limit: 3]`. If you don't specify a value or supply `true`,
+  the default values `[delay: 10, limit: 10]` are used.
+* `prefetch_count` specifies the number of messages pulled from RabbitMQ at once. Default is `1`
+* `connection_id` is a string. If you use the same value for all of your consumers, only 1 RabbitMQ connection
+  will be opened and used. Default value is `:default` meaning that you always use a new RabbitMQ connection.
+
+## Handling Errors
+If your consumer cannot process a message and your consumer crashes, you can use an `on_error` callback, so you have
+the chance to e.g. log the error
+
+``` elixir
+def on_error(payload, message_metadata, {error_reason, stacktrace}, current_attempt, max_number_of_attemts) do
+    Logger.info("An error #{error_reason} occurred.")
+  end
+```
+
+Don't get confused: `max_number_of_attempts` is `retry_limit + 1` and not equal to `retry_limit`. The same applies to
+the `current_attempt` value.
+
+If you want to retry a message processing without raising an error, your consumer's `handle_message` can throw an
+`{:retry, retry_reason}`. Then the message gets pushed to the retry queue as usual.
+
+``` elixir
+def handle_message(message) do
+  if not_ready_to_process_message_yet(message) do
+    throw {:retry, :rabbitmq_out_of_order_message}
+  else
+    process_message(message)
+  end
+end
 ```
 
 ## Rescuing dead messages
@@ -79,26 +110,13 @@ TestConsumer.start_link
 If you consumer is broken, or in other words raises an exception while handling
 messages, your messages will end up in a dead messages queue.
 
-To rescue those messages, you can use `Tackle.republish`:
+To rescue those messages, you can use `MyApp.MyConsumer.retry_dead_messages(how_many)`:
 
-``` elixir
-dead_queue_name = "my-service.test-message.dead"
 
-options = {
-  url: "amqp://localhost",
-  queue: dead_queue_name,
-  exchange: "test-exchange",
-  routing_key: "test-messages",
-  count: 1
-}
+The above will pull one message from the dead queue and publish it on the original message exchange
+with the original routing key.
 
-Tackle.republish(options)
-```
-
-The above will pull one message from the `dead_queue_name` and publish it on the
-`test-exchange` exchange with `test-messages` routing key.
-
-To republish multiple messages, use a bigger `count` number.
+To republish multiple messages, use a bigger `how_many` number.
 
 ## Opening multiple channels through the same connection
 
@@ -121,7 +139,7 @@ In consumer specification use `connection_id` parameter:
 ```
 defmodule Consumer do
   use Tackle.Consumer,
-    url: "...",
+    rabbitmq_url: "...",
     connection_id: :connection_identifier,
     ...
 ```
