@@ -1,26 +1,15 @@
 defmodule Tackle.Channel do
-  use AMQP
-  require Logger
+  @default_prefetch_count 1
 
-  @prefetch_count 1
+  def create(connection, prefetch_count \\ @default_prefetch_count) do
+    {:ok, channel} = AMQP.Channel.open(connection)
 
-  def create(connection) do
-    create(connection, @prefetch_count)
-  end
-
-  def create(connection, nil) do
-    create(connection, @prefetch_count)
-  end
-
-  def create(connection, prefetch_count) do
-    {:ok, channel} = Channel.open(connection)
-
-    Basic.qos(channel, prefetch_count: prefetch_count)
+    :ok = AMQP.Basic.qos(channel, prefetch_count: prefetch_count)
 
     channel
   end
 
   def close(channel) do
-    Channel.close(channel)
+    :ok = AMQP.Channel.close(channel)
   end
 end
