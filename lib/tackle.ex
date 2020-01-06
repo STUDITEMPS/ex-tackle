@@ -18,7 +18,7 @@ defmodule Tackle do
   # with the AMQP.Basic.publish function. Here, we should enforce the `tackle` behaviour which publishes all messages
   # over the applications own __service_exchange__. So rename the option name!!!
   def publish(message, options) when is_binary(message) do
-    options = options |> Enum.into(%{}) |> deprecate_old_options()
+    options = Enum.into(options, %{})
 
     rabbitmq_url = Map.fetch!(options, :rabbitmq_url)
     exchange = Map.fetch!(options, :exchange)
@@ -41,23 +41,6 @@ defmodule Tackle do
     after
       AMQP.Channel.close(channel)
       AMQP.Connection.close(connection)
-    end
-  end
-
-  # Do we need deprecations? We are the only users of our fork! If not, just drop the support for
-  # `:url` and for `:exchange` in consumer
-  defp deprecate_old_options(options) do
-    if options[:url] do
-      IO.warn(
-        "Setting RabbitMQ url using `url` option is deprecated. Use `rabbitmq_url` option instead",
-        Macro.Env.stacktrace(__ENV__)
-      )
-
-      options
-      |> Map.put_new(:rabbitmq_url, options[:url])
-      |> Map.delete(:url)
-    else
-      options
     end
   end
 end

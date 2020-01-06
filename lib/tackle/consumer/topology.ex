@@ -28,7 +28,7 @@ defmodule Tackle.Consumer.Topology do
 
     service = Map.fetch!(options, :service)
     routing_key = Map.fetch!(options, :routing_key)
-    remote_exchange = remote_exchange_from_options!(options)
+    remote_exchange = Map.fetch!(options, :remote_exchange)
     retry = retry_options_from(options)
 
     new(
@@ -78,22 +78,6 @@ defmodule Tackle.Consumer.Topology do
         {Keyword.get(from_options, :delay) || @default_retry_delay,
          Keyword.get(from_options, :limit) || @default_retry_limit}
     end
-  end
-
-  defp remote_exchange_from_options!(%{exchange: remote_exchange} = options) do
-    IO.warn(
-      "Setting Remote Exchange using `exchange` option is deprecated. Use `remote_exchange` option instead",
-      Macro.Env.stacktrace(__ENV__)
-    )
-
-    options
-    |> Map.put_new(:remote_exchange, remote_exchange)
-    |> Map.delete(:exchange)
-    |> remote_exchange_from_options!()
-  end
-
-  defp remote_exchange_from_options!(options) do
-    Map.fetch!(options, :remote_exchange)
   end
 
   defp retry_options_from(options) do
