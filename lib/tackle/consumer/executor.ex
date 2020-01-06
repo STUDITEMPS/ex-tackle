@@ -36,6 +36,7 @@ defmodule Tackle.Consumer.Executor do
         state.prefetch_count
       )
 
+    # FIXME: Nach Topology schieben
     Tackle.Exchange.create_message_exchange(channel, topology)
     Tackle.Queue.create_consume_queue(channel, topology)
     Tackle.Queue.create_delay_queue(channel, topology)
@@ -67,6 +68,7 @@ defmodule Tackle.Consumer.Executor do
   def handle_info({:basic_cancel_ok, _}, state), do: {:stop, :normal, state}
 
   def handle_info({:basic_deliver, payload, %{delivery_tag: tag} = message_metadata}, state) do
+    # try/rescue/catch stattdessen benutzen
     consume_callback = fn ->
       state.handler.handle_message(payload)
       AMQP.Basic.ack(state.channel, tag)
@@ -139,6 +141,7 @@ defmodule Tackle.Consumer.Executor do
        ) do
     retry_count = Tackle.DelayedRetry.retry_count_from_headers(headers)
 
+    # FIXME: try/rescue/catch stattdessen benutzen
     Task.start(fn ->
       current_attempt = retry_count + 1
       max_number_of_attemts = state.topology.retry_limit + 1

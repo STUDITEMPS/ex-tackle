@@ -60,6 +60,7 @@ defmodule Tackle.Consumer do
       defoverridable(on_error: 5)
 
       def retry_dead_messages(how_many \\ 1) do
+        # FIXME: Muss nicht zum Executor gehen...
         Tackle.Consumer.Executor.republish_dead_messages(@name, how_many)
       end
 
