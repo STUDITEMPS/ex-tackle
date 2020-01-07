@@ -26,9 +26,7 @@ defmodule Tackle.Consumer.Executor do
     {:ok, state}
   end
 
-  defp setup!(state) do
-    topology = state.topology
-
+  defp setup!(%{topology: topology} = state) do
     {:ok, channel} =
       setup_connection_channel(
         state.connection_id,
@@ -36,17 +34,10 @@ defmodule Tackle.Consumer.Executor do
         state.prefetch_count
       )
 
-    # FIXME: Nach Topology schieben
-    Tackle.Exchange.create_message_exchange(channel, topology)
-    Tackle.Queue.create_consume_queue(channel, topology)
-    Tackle.Queue.create_delay_queue(channel, topology)
-    Tackle.Queue.create_dead_queue(channel, topology)
-
-    Tackle.Exchange.bind_message_exchange_to_remote(channel, topology)
-    Tackle.Exchange.bind_message_exchange_to_consume_queue(channel, topology)
+    Tackle.Consumer.Topology.setup!(channel, topology)
 
     # start actual consuming
-    {:ok, _consumer_tag} = AMQP.Basic.consume(channel, topology.consume_queue)
+    {:ok, _consumer_tag} = AMQP.Basic.consume(channel, topology.queue)
 
     Tackle.Consumer.State.started(state, channel: channel)
   end
