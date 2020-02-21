@@ -1,4 +1,16 @@
 defmodule Support do
+  def rabbitmqctl_command(opts) when not is_nil(opts) do
+    opts = List.wrap(opts)
+
+    case System.get_env("USE_SUDO_FOR_RABBITCTL") do
+      "true" ->
+        System.cmd("sudo", ["rabbitmqctl" | opts])
+
+      _ ->
+        System.cmd("rabbitmqctl", opts)
+    end
+  end
+
   def create_exchange(exchange_name) do
     execute(fn channel ->
       Tackle.Exchange.create(channel, exchange_name)
