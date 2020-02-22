@@ -27,10 +27,10 @@ defmodule Tackle.ParallelMessageHandling_2_Test do
   }
 
   setup do
-    reset_test_exchanges_and_queues()
+    Support.cleanup!(TestConsumer)
 
     on_exit(fn ->
-      reset_test_exchanges_and_queues()
+      Support.cleanup!(TestConsumer)
     end)
 
     {:ok, _} = TestConsumer.start_link()
@@ -68,12 +68,5 @@ defmodule Tackle.ParallelMessageHandling_2_Test do
 
       assert Task.Supervisor.children(sup) |> Enum.count() == 0
     end
-  end
-
-  defp reset_test_exchanges_and_queues do
-    Support.delete_all_queues("ex-tackle.prefetch-count-service.prefetch", 10)
-
-    Support.delete_exchange("ex-tackle.prefetch-count-service.prefetch")
-    Support.delete_exchange("ex-tackle.test-prefetch-2-exchange")
   end
 end

@@ -22,10 +22,10 @@ defmodule Tackle.HealthyConsumerTest do
   }
 
   setup do
-    reset_test_exchanges_and_queues()
+    Support.cleanup!(TestConsumer)
 
     on_exit(fn ->
-      reset_test_exchanges_and_queues()
+      Support.cleanup!(TestConsumer)
     end)
 
     MessageTrace.clear("healthy-service")
@@ -47,12 +47,5 @@ defmodule Tackle.HealthyConsumerTest do
 
       assert MessageTrace.content("healthy-service") == "Hi!"
     end
-  end
-
-  defp reset_test_exchanges_and_queues do
-    Support.delete_all_queues("ex-tackle.healthy-service.health", 10)
-
-    Support.delete_exchange("ex-tackle.healthy-service.health")
-    Support.delete_exchange("ex-tackle.test-exchange")
   end
 end

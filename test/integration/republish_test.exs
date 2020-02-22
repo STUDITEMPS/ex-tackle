@@ -41,11 +41,11 @@ defmodule Tackle.RepublishTest do
   @dead_queue "ex-tackle.republish-service.test-messages.dead"
 
   setup do
-    reset_test_exchanges_and_queues()
+    Support.cleanup!(FixedConsumer)
 
     on_exit(fn ->
       nil
-      reset_test_exchanges_and_queues()
+      Support.cleanup!(FixedConsumer)
     end)
 
     Support.create_exchange("ex-tackle.test-exchange")
@@ -101,12 +101,5 @@ defmodule Tackle.RepublishTest do
     it "leaves the remaining messages in the dead qeueue" do
       assert Support.queue_status(@dead_queue).message_count == 1
     end
-  end
-
-  defp reset_test_exchanges_and_queues do
-    Support.delete_all_queues("ex-tackle.republish-service.test-messages")
-
-    Support.delete_exchange("ex-tackle.republish-service.test-messages")
-    Support.delete_exchange("ex-tackle.test-exchange")
   end
 end

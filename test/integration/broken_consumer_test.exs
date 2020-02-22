@@ -27,10 +27,10 @@ defmodule Tackle.BrokenConsumerTest do
   }
 
   setup do
-    reset_test_exchanges_and_queues()
+    Support.cleanup!(BrokenConsumer)
 
     on_exit(fn ->
-      reset_test_exchanges_and_queues()
+      Support.cleanup!(BrokenConsumer)
     end)
 
     MessageTrace.clear("broken-service")
@@ -48,12 +48,5 @@ defmodule Tackle.BrokenConsumerTest do
 
       assert MessageTrace.content("broken-service") == "Hi!Hi!Hi!Hi!"
     end
-  end
-
-  defp reset_test_exchanges_and_queues do
-    Support.delete_all_queues("ex-tackle.broken-service.test-messages")
-
-    Support.delete_exchange("ex-tackle.broken-service.test-messages")
-    Support.delete_exchange("ex-tackle.test-exchange")
   end
 end

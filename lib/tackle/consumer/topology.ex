@@ -78,6 +78,18 @@ defmodule Tackle.Consumer.Topology do
     )
   end
 
+  def cleanup!(channel, %__MODULE__{} = topology, delete_remote_exchange \\ false) do
+    AMQP.Queue.delete(channel, topology.queue)
+    AMQP.Queue.delete(channel, topology.delay_queue)
+    AMQP.Queue.delete(channel, topology.dead_queue)
+
+    AMQP.Exchange.delete(channel, topology.message_exchange)
+
+    if delete_remote_exchange do
+      AMQP.Exchange.delete(channel, topology.remote_exchange)
+    end
+  end
+
   def new(
         service: service_name,
         remote_exchange: remote_exchange_name,

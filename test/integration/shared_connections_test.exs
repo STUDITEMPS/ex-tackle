@@ -52,10 +52,12 @@ defmodule Tackle.SharedConnection.Test do
   end
 
   setup do
-    reset_test_exchanges_and_queues()
+    Support.cleanup!(TestConsumer1)
+    Support.cleanup!(TestConsumer2)
 
     on_exit(fn ->
-      reset_test_exchanges_and_queues()
+      Support.cleanup!(TestConsumer1)
+      Support.cleanup!(TestConsumer2)
     end)
   end
 
@@ -110,15 +112,5 @@ defmodule Tackle.SharedConnection.Test do
         msg -> msg
       end
     end
-  end
-
-  defp reset_test_exchanges_and_queues do
-    Support.delete_all_queues("ex-tackle.multiple-channels-service-1.multiple-channels", 10)
-    Support.delete_all_queues("ex-tackle.multiple-channels-service-2.multiple-channels", 10)
-
-    Support.delete_exchange("ex-tackle.multiple-channels-service-1.multiple-channels")
-    Support.delete_exchange("ex-tackle.multiple-channels-service-2.multiple-channels")
-    Support.delete_exchange("ex-tackle.test-multiple-channels-exchange-1")
-    Support.delete_exchange("ex-tackle.test-multiple-channels-exchange-2")
   end
 end

@@ -7,8 +7,8 @@ defmodule Tackle.MultipleServicesTest do
     require Logger
 
     use Tackle.Consumer,
-      url: "amqp://localhost",
-      exchange: "ex-tackle.test-exchange",
+      rabbitmq_url: "amqp://localhost",
+      remote_exchange: "ex-tackle.test-exchange",
       routing_key: "a",
       service: "ex-tackle.serviceA",
       retry_delay: 1,
@@ -26,8 +26,8 @@ defmodule Tackle.MultipleServicesTest do
     require Logger
 
     use Tackle.Consumer,
-      url: "amqp://localhost",
-      exchange: "ex-tackle.test-exchange",
+      rabbitmq_url: "amqp://localhost",
+      remote_exchange: "ex-tackle.test-exchange",
       routing_key: "a",
       service: "ex-tackle.serviceB",
       retry_delay: 1,
@@ -43,16 +43,18 @@ defmodule Tackle.MultipleServicesTest do
   end
 
   @publish_options %{
-    url: "amqp://localhost",
+    rabbitmq_url: "amqp://localhost",
     exchange: "ex-tackle.test-exchange",
     routing_key: "a"
   }
 
   setup do
-    reset_test_exchanges_and_queues()
+    Support.cleanup!(ServiceA)
+    Support.cleanup!(ServiceB)
 
     on_exit(fn ->
-      reset_test_exchanges_and_queues()
+      Support.cleanup!(ServiceA)
+      Support.cleanup!(ServiceB)
     end)
 
     {:ok, _serviceA} = ServiceA.start_link()
@@ -89,14 +91,5 @@ defmodule Tackle.MultipleServicesTest do
 
       assert MessageTrace.content("serviceB") == "Hi!Hi!Hi!Hi!"
     end
-  end
-
-  defp reset_test_exchanges_and_queues do
-    Support.delete_all_queues("ex-tackle.serviceA.a")
-    Support.delete_all_queues("ex-tackle.serviceB.a")
-
-    Support.delete_exchange("ex-tackle.serviceA.a")
-    Support.delete_exchange("ex-tackle.serviceB.a")
-    Support.delete_exchange("ex-tackle.test-exchange")
   end
 end

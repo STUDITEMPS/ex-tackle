@@ -25,10 +25,10 @@ defmodule Tackle.DeadQueueTest do
   @dead_queue "ex-tackle.dead-service.test-messages.dead"
 
   setup do
-    reset_test_exchanges_and_queues()
+    Support.cleanup!(DeadConsumer)
 
     on_exit(fn ->
-      reset_test_exchanges_and_queues()
+      Support.cleanup!(DeadConsumer)
     end)
 
     {:ok, _} = DeadConsumer.start_link()
@@ -47,12 +47,5 @@ defmodule Tackle.DeadQueueTest do
 
       assert Support.queue_status(@dead_queue).message_count == 1
     end
-  end
-
-  defp reset_test_exchanges_and_queues do
-    Support.delete_all_queues("ex-tackle.dead-service.test-messages")
-
-    Support.delete_exchange("ex-tackle.dead-service.test-messages")
-    Support.delete_exchange("ex-tackle.test-exchange")
   end
 end

@@ -16,10 +16,10 @@ defmodule Tackle.ListenerTest do
   end
 
   setup do
-    reset_test_exchanges_and_queues()
+    Support.cleanup!(TestConsumer)
 
     on_exit(fn ->
-      reset_test_exchanges_and_queues()
+      Support.cleanup!(TestConsumer)
     end)
   end
 
@@ -51,12 +51,5 @@ defmodule Tackle.ListenerTest do
 
       assert String.contains?(response, "ex-tackle.test-service.test-messages")
     end
-  end
-
-  defp reset_test_exchanges_and_queues do
-    Support.delete_all_queues("ex-tackle.test-service.test-messages", 10)
-
-    Support.delete_exchange("ex-tackle.test-service.test-messages")
-    Support.delete_exchange("ex-tackle.test-exchange")
   end
 end

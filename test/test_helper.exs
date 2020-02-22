@@ -2,13 +2,20 @@ defmodule Support do
   def rabbitmqctl_command(opts) when not is_nil(opts) do
     opts = List.wrap(opts)
 
-    case System.get_env("USE_SUDO_FOR_RABBITCTL") do
+    case System.get_env("USE_SUDO_FOR_RABBITMQCTL") do
       "true" ->
         System.cmd("sudo", ["rabbitmqctl" | opts])
 
       _ ->
         System.cmd("rabbitmqctl", opts)
     end
+  end
+
+  def cleanup!(consumer_module) do
+    execute(fn channel ->
+      topology = consumer_module.topology()
+      Tackle.Consumer.Topology.cleanup!(channel, topology, _delete_remote_exchange = true)
+    end)
   end
 
   def create_exchange(exchange_name) do
