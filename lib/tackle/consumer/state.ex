@@ -16,10 +16,7 @@ defmodule Tackle.Consumer.State do
   ]
 
   def configure!(options) do
-    options =
-      options
-      |> validate_rabbitmq_url()
-      |> Map.put_new(:topology, Tackle.Consumer.Topology.from_options!(options))
+    options = Map.put_new(options, :topology, Tackle.Consumer.Topology.from_options!(options))
 
     struct(__MODULE__, options)
   end
@@ -27,17 +24,4 @@ defmodule Tackle.Consumer.State do
   def started(%__MODULE__{} = me, channel: channel) do
     %{me | channel: channel}
   end
-
-  defp validate_rabbitmq_url(%{url: rabbitmq_url} = options) do
-    IO.warn(
-      "Setting RabbitMQ url using `url` option is deprecated. Use `rabbitmq_url` option instead",
-      Macro.Env.stacktrace(__ENV__)
-    )
-
-    options
-    |> Map.put_new(:rabbitmq_url, rabbitmq_url)
-    |> Map.delete(:url)
-  end
-
-  defp validate_rabbitmq_url(options), do: options
 end
