@@ -2,6 +2,8 @@
 
 [![Codeship Status for STUDITEMPS/ex-tackle](https://app.codeship.com/projects/19974410-11da-0138-00b3-5e967baef77f/status?branch=refactor_consumer)](https://app.codeship.com/projects/380149)
 
+[![Coverage Status](https://coveralls.io/repos/github/STUDITEMPS/ex-tackle/badge.svg?branch=refactor_consumer)](https://coveralls.io/github/STUDITEMPS/ex-tackle?branch=refactor_consumer)
+
 Tackles the problem of processing asynchronous jobs in reliable manner
 by relying on RabbitMQ.
 
