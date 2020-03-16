@@ -62,13 +62,13 @@ defmodule Tackle.Consumer.Executor do
     # try/rescue/catch stattdessen benutzen
     consume_callback = fn ->
       state.handler.handle_message(payload)
-      AMQP.Basic.ack(state.channel, tag)
+      :ok = AMQP.Basic.ack(state.channel, tag)
     end
 
     error_callback = fn reason ->
       Logger.error("Consumption failed: #{inspect(reason)}; payload: #{inspect(payload)}")
       retry(state, payload, message_metadata, reason)
-      AMQP.Basic.nack(state.channel, tag, multiple: false, requeue: false)
+      :ok = AMQP.Basic.nack(state.channel, tag, multiple: false, requeue: false)
     end
 
     spawn(fn -> delivery_handler(consume_callback, error_callback) end)

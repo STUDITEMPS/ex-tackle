@@ -17,8 +17,8 @@ defmodule Tackle.Republisher do
         Logger.debug("No messages to republish in '#{dead_queue_name}'")
 
       {:ok, message, %{delivery_tag: tag}} ->
-        AMQP.Basic.publish(channel, exchange, routing_key, message, persistent: true)
-        AMQP.Basic.ack(channel, tag)
+        :ok = AMQP.Basic.publish(channel, exchange, routing_key, message, persistent: true)
+        :ok = AMQP.Basic.ack(channel, tag)
 
         Logger.debug("Republished a message with delivery tag '#{tag}' to '#{dead_queue_name}'")
     end

@@ -15,12 +15,12 @@ defmodule Tackle.Mixfile do
   end
 
   def application do
-    [applications: [:logger, :amqp], mod: {Tackle, []}]
+    [applications: [:lager, :logger, :amqp], mod: {Tackle, []}]
   end
 
   defp deps do
     [
-      {:amqp, "~> 0.3"},
+      {:amqp, "~> 1.4.1"},
       {:ex_spec, "~> 2.0", only: :test},
       {:excoveralls, "~> 0.10", only: :test}
     ]
