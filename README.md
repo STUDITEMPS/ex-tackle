@@ -21,18 +21,11 @@ Add the following to the list of your dependencies:
 ``` elixir
 def deps do
   [
-    {:tackle, github: "renderedtext/ex-tackle"}
+    {:tackle, github: "STUDITEMPS/ex-tackle"}
   ]
 end
 ```
 
-Also, add it to the list of your applications:
-
-``` elixir
-def application do
-  [applications: [:tackle]]
-end
-```
 
 ## Publishing messages to an exchange
 
@@ -49,6 +42,8 @@ Tackle.publish("Hi!", options)
 ```
 
 ## Consuming messages from an exchange
+
+![Tackle Consumer Topology](https://drive.google.com/file/d/1pQovNj9wBS-t7_dUoXoP3ntnVaASqpS5/view?usp=sharing)
 
 First, declare a consumer module:
 
