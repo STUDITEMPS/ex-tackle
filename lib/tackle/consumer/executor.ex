@@ -39,11 +39,16 @@ defmodule Tackle.Consumer.Executor do
     # start actual consuming
     {:ok, _consumer_tag} = AMQP.Basic.consume(channel, topology.queue)
 
+    # Sleep is needed for the ConnectionErrorsTest
+    Process.sleep(2)
+
     Tackle.Consumer.State.started(state, channel: channel)
   end
 
   defp setup_connection_channel(connection_id, url, prefetch_count) do
     with {:ok, connection} <- Tackle.Connection.open(connection_id, url) do
+      # Get notifications when the connection goes down
+      Process.monitor(connection.pid)
       channel = Tackle.Channel.create(connection, prefetch_count)
       {:ok, channel}
     end
@@ -74,6 +79,12 @@ defmodule Tackle.Consumer.Executor do
     spawn(fn -> delivery_handler(consume_callback, error_callback) end)
 
     {:noreply, state}
+  end
+
+  # Called if a monitored connection dies.
+  def handle_info({:DOWN, _, :process, _pid, reason}, _) do
+    # Stop GenServer. Will be restarted by Supervisor.
+    {:stop, {:connection_lost, reason}, nil}
   end
 
   def delivery_handler(consume_callback, error_callback) do
