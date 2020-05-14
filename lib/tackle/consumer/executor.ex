@@ -82,9 +82,17 @@ defmodule Tackle.Consumer.Executor do
   end
 
   # Called if a monitored connection dies.
-  def handle_info({:DOWN, _, :process, _pid, reason}, _) do
-    # Stop GenServer. Will be restarted by Supervisor.
-    {:stop, {:connection_lost, reason}, nil}
+  def handle_info(
+        {:DOWN, _, :process, pid, reason},
+        %Tackle.Consumer.State{
+          channel: %AMQP.Channel{conn: %AMQP.Connection{pid: pid}}
+        } = state
+      ) do
+    Logger.warn(
+      "Connection process went down (#{inspect(reason)}). Stopping Consumer to be restarted by supervisor"
+    )
+
+    {:stop, {:connection_lost, reason}, state}
   end
 
   def delivery_handler(consume_callback, error_callback) do
