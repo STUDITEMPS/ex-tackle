@@ -38,12 +38,19 @@ defmodule Tackle.ConnectionErrorsTest do
   }
   @timeout 100
 
-  test "connection dies" do
-    # Setup
+  setup do
     Support.cleanup!(FailConsumer)
     MessageTrace.clear("connection-errors")
     :timer.sleep(@timeout)
 
+    on_exit(fn ->
+      Support.cleanup!(FailConsumer)
+    end)
+
+    :ok
+  end
+
+  test "connection dies" do
     # Start Consumer
     pid = start_supervised!(FailConsumer)
     assert Process.alive?(pid)
