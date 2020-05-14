@@ -85,11 +85,14 @@ defmodule Tackle.Consumer.Executor do
   def handle_info(
         {:DOWN, _, :process, pid, reason},
         %Tackle.Consumer.State{
-          channel: %AMQP.Channel{conn: %AMQP.Connection{pid: pid}}
+          channel: %AMQP.Channel{conn: %AMQP.Connection{pid: pid}},
+          topology: topology
         } = state
       ) do
     Logger.warn(
-      "Connection process went down (#{inspect(reason)}). Stopping Consumer to be restarted by supervisor"
+      "Connection process went down (#{inspect(reason)}). Stopping Consumer for queue #{
+        topology.queue
+      }"
     )
 
     {:stop, {:connection_lost, reason}, state}
