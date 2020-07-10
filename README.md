@@ -45,7 +45,7 @@ Tackle.publish("Hi!", options)
 
 ## Consuming messages from an exchange
 
-![Tackle Consumer Topology](https://raw.githubusercontent.com/STUDITEMPS/ex-tackle/refactor_consumer/topology.png)
+![Tackle Consumer Topology](https://raw.githubusercontent.com/STUDITEMPS/ex-tackle/master/topology.png)
 
 First, declare a consumer module:
 
