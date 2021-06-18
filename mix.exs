@@ -22,7 +22,8 @@ defmodule Tackle.Mixfile do
     [
       {:amqp, "~> 1.4.1"},
       {:ex_spec, "~> 2.0", only: :test},
-      {:excoveralls, "~> 0.10", only: :test}
+      {:excoveralls, "~> 0.10", only: :test},
+      {:tesla, "~> 1.4.1", only: :test}
     ]
   end
 
