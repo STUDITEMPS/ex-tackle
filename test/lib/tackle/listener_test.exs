@@ -35,11 +35,11 @@ defmodule Tackle.ListenerTest do
 
       :timer.sleep(1000)
 
-      {response, 0} = Support.rabbitmqctl_command("list_queues")
+      queues = Support.rabbitmq_list_queues
 
-      assert String.contains?(response, "ex-tackle.test-service.test-messages")
-      assert String.contains?(response, "ex-tackle.test-service.test-messages.delay.10")
-      assert String.contains?(response, "ex-tackle.test-service.test-messages.dead")
+      assert Enum.member?(queues, "ex-tackle.test-service.test-messages")
+      assert Enum.member?(queues, "ex-tackle.test-service.test-messages.delay.10")
+      assert Enum.member?(queues, "ex-tackle.test-service.test-messages.dead")
     end
 
     it "creates an exchange on the amqp server" do
@@ -47,9 +47,9 @@ defmodule Tackle.ListenerTest do
 
       :timer.sleep(1000)
 
-      {response, 0} = Support.rabbitmqctl_command("list_exchanges")
+      exchanges = Support.rabbitmq_list_exchanges
 
-      assert String.contains?(response, "ex-tackle.test-service.test-messages")
+      assert Enum.member?(exchanges, "ex-tackle.test-service.test-messages")
     end
   end
 end

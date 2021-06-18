@@ -1,14 +1,29 @@
 defmodule Support do
-  def rabbitmqctl_command(opts) when not is_nil(opts) do
-    opts = List.wrap(opts)
+  defmodule RabbitmqAPI do
+    use Tesla
+    @user System.get_env("RABBITMQ_USER", "guest")
+    @password System.get_env("RABBITMQ_PASSWORD", "guest")
+    @token "#{@user}:#{@password}" |> Base.encode64()
 
-    case System.get_env("USE_SUDO_FOR_RABBITMQCTL") do
-      "true" ->
-        System.cmd("sudo", ["rabbitmqctl" | opts])
+    plug Tesla.Middleware.BaseUrl, "http://localhost:15672/api"
+    plug Tesla.Middleware.Headers, [{"authorization", "Basic #{@token}"}]
+    plug Tesla.Middleware.JSON
 
-      _ ->
-        System.cmd("rabbitmqctl", opts)
+    def list_exchanges() do
+      get!("/exchanges")
     end
+
+    def list_queues() do
+      get!("/queues")
+    end
+  end
+
+  def rabbitmq_list_exchanges() do
+    RabbitmqAPI.list_exchanges().body |> Enum.map(fn %{"name" => name} -> name end)
+  end
+
+  def rabbitmq_list_queues() do
+    RabbitmqAPI.list_queues().body |> Enum.map(fn %{"name" => name} -> name end)
   end
 
   def cleanup!(consumer_module) do
