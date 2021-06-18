@@ -4,7 +4,7 @@ defmodule Tackle.Mixfile do
   def project do
     [
       app: :tackle,
-      version: "0.2.1",
+      version: "1.0.0",
       elixir: "~> 1.6",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
@@ -20,7 +20,7 @@ defmodule Tackle.Mixfile do
 
   defp deps do
     [
-      {:amqp, "~> 1.4.1"},
+      {:amqp, "~> 2.0"},
       {:ex_spec, "~> 2.0", only: :test},
       {:excoveralls, "~> 0.10", only: :test},
       {:tesla, "~> 1.4.1", only: :test}
