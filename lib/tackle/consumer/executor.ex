@@ -90,9 +90,7 @@ defmodule Tackle.Consumer.Executor do
         } = state
       ) do
     Logger.warn(
-      "Connection process went down (#{inspect(reason)}). Stopping Consumer for queue #{
-        topology.queue
-      }"
+      "Connection process went down (#{inspect(reason)}). Stopping Consumer for queue #{topology.queue}"
     )
 
     {:stop, {:connection_lost, reason}, state}
