@@ -98,6 +98,11 @@ defmodule Tackle.Consumer.Executor do
     {:stop, {:connection_lost, reason}, state}
   end
 
+  # This message is received because of fetching OS certificates during connection opening in Tackle.Connection.open/1
+  def handle_info({:EXIT, _port, :normal}, state) do
+    {:noreply, state}
+  end
+
   def delivery_handler(consume_callback, error_callback) do
     Process.flag(:trap_exit, true)
 

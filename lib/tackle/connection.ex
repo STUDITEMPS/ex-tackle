@@ -116,21 +116,22 @@ defmodule Tackle.Connection do
   end
 
   @spec open(String.t()) :: {:ok, AMQP.Connection.t()} | {:error, atom()} | {:error, any()}
+  # Saving OS certs during compile time. Fetching them during runtime results in
+  # a {:EXIT, #Port<0.44>, :normal} message received by the Executor GenServer.
+  def open("amqps" <> _ = url) do
+    certs = :public_key.cacerts_get()
+
+    AMQP.Connection.open(url,
+      name: "secure",
+      ssl_options: [
+        verify: :verify_peer,
+        cacerts: certs,
+        customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
+      ]
+    )
+  end
+
   def open(url) do
     AMQP.Connection.open(url)
   end
-
-  # Saving OS certs during compile time. Fetching them during runtime results in
-  # a {:EXIT, #Port<0.44>, :normal} message received by the Executor GenServer.
-  # @certs :public_key.cacerts_get()
-  #
-  # def open(url) do
-  #   AMQP.Connection.open(url,
-  #     ssl_options: [
-  #       verify: :verify_peer,
-  #       cacerts: @certs,
-  #       customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
-  #     ]
-  #   )
-  # end
 end
