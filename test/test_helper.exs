@@ -1,11 +1,14 @@
 defmodule Support do
+  @rabbitmq_url Application.compile_env(:tackle, :rabbitmq_url)
+
   defmodule RabbitmqAPI do
     use Tesla
-    @user System.get_env("RABBITMQ_USER", "guest")
-    @password System.get_env("RABBITMQ_PASSWORD", "guest")
+    @user Application.compile_env(:tackle, :rabbitmq_user)
+    @password Application.compile_env(:tackle, :rabbitmq_password)
+    @host Application.compile_env(:tackle, :rabbitmq_host)
     @token "#{@user}:#{@password}" |> Base.encode64()
 
-    plug Tesla.Middleware.BaseUrl, "http://localhost:15672/api"
+    plug Tesla.Middleware.BaseUrl, "http://#{@host}:15672/api"
     plug Tesla.Middleware.Headers, [{"authorization", "Basic #{@token}"}]
     plug Tesla.Middleware.JSON
 
@@ -75,7 +78,7 @@ defmodule Support do
   end
 
   defp execute(fun) when is_function(fun, 1) do
-    Tackle.execute("amqp://localhost", fun)
+    Tackle.execute(@rabbitmq_url, fun)
   end
 
   defmodule MessageTrace do

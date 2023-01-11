@@ -6,8 +6,10 @@ defmodule Tackle.MultipleServicesTest do
   defmodule ServiceA do
     require Logger
 
+    @rabbitmq_url Application.compile_env(:tackle, :rabbitmq_url)
+
     use Tackle.Consumer,
-      rabbitmq_url: "amqp://localhost",
+      rabbitmq_url: @rabbitmq_url,
       remote_exchange: "ex-tackle.test-exchange",
       routing_key: "a",
       service: "ex-tackle.serviceA",
@@ -25,8 +27,10 @@ defmodule Tackle.MultipleServicesTest do
   defmodule ServiceB do
     require Logger
 
+    @rabbitmq_url Application.compile_env(:tackle, :rabbitmq_url)
+
     use Tackle.Consumer,
-      rabbitmq_url: "amqp://localhost",
+      rabbitmq_url: @rabbitmq_url,
       remote_exchange: "ex-tackle.test-exchange",
       routing_key: "a",
       service: "ex-tackle.serviceB",
@@ -43,7 +47,7 @@ defmodule Tackle.MultipleServicesTest do
   end
 
   @publish_options %{
-    rabbitmq_url: "amqp://localhost",
+    rabbitmq_url: Application.compile_env(:tackle, :rabbitmq_url),
     exchange: "ex-tackle.test-exchange",
     routing_key: "a"
   }

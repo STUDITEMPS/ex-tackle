@@ -4,7 +4,7 @@ defmodule Tackle.Exchange do
   # FIXME: let the user configure this in every situation: consumer, publisher and so on.
   # Do not save the configuration in a module variable. Each change would then require to
   # recompile the deps
-  @default_exchange_type Application.get_env(:tackle, :exchange_type, :direct)
+  @default_exchange_type Application.compile_env(:tackle, :exchange_type, :direct)
 
   def create(channel, name, type \\ @default_exchange_type) do
     :ok = AMQP.Exchange.declare(channel, name, type, durable: true)

@@ -1,9 +1,13 @@
 defmodule Tackle.SharedConnection.Test do
   use ExSpec
 
+  @rabbitmq_url Application.compile_env(:tackle, :rabbitmq_url)
+
   defmodule TestConsumer1 do
+    @rabbitmq_url Application.compile_env(:tackle, :rabbitmq_url)
+
     use Tackle.Consumer,
-      rabbitmq_url: "amqp://localhost",
+      rabbitmq_url: @rabbitmq_url,
       remote_exchange: "ex-tackle.test-multiple-channels-exchange-1",
       routing_key: "multiple-channels",
       service: "ex-tackle.multiple-channels-service-1",
@@ -15,8 +19,10 @@ defmodule Tackle.SharedConnection.Test do
   end
 
   defmodule TestConsumer2 do
+    @rabbitmq_url Application.compile_env(:tackle, :rabbitmq_url)
+
     use Tackle.Consumer,
-      rabbitmq_url: "amqp://localhost",
+      rabbitmq_url: @rabbitmq_url,
       remote_exchange: "ex-tackle.test-multiple-channels-exchange-2",
       routing_key: "multiple-channels",
       service: "ex-tackle.multiple-channels-service-2",
@@ -34,13 +40,13 @@ defmodule Tackle.SharedConnection.Test do
   end
 
   @publish_options_1 %{
-    rabbitmq_url: "amqp://localhost",
+    rabbitmq_url: @rabbitmq_url,
     exchange: "ex-tackle.test-multiple-channels-exchange-1",
     routing_key: "multiple-channels"
   }
 
   @publish_options_2 %{
-    rabbitmq_url: "amqp://localhost",
+    rabbitmq_url: @rabbitmq_url,
     exchange: "ex-tackle.test-multiple-channels-exchange-2",
     routing_key: "multiple-channels"
   }

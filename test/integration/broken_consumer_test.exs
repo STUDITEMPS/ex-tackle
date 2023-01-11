@@ -4,8 +4,10 @@ defmodule Tackle.BrokenConsumerTest do
   alias Support.MessageTrace
 
   defmodule BrokenConsumer do
+    @rabbitmq_url Application.compile_env(:tackle, :rabbitmq_url)
+
     use Tackle.Consumer,
-      rabbitmq_url: "amqp://localhost",
+      rabbitmq_url: @rabbitmq_url,
       remote_exchange: "ex-tackle.test-exchange",
       routing_key: "test-messages",
       service: "ex-tackle.broken-service",
@@ -21,7 +23,7 @@ defmodule Tackle.BrokenConsumerTest do
   end
 
   @publish_options %{
-    rabbitmq_url: "amqp://localhost",
+    rabbitmq_url: Application.compile_env(:tackle, :rabbitmq_url),
     exchange: "ex-tackle.test-exchange",
     routing_key: "test-messages"
   }

@@ -2,8 +2,10 @@ defmodule Tackle.ParallelMessageHandling_2_Test do
   use ExSpec
 
   defmodule TestConsumer do
+    @rabbitmq_url Application.compile_env(:tackle, :rabbitmq_url)
+
     use Tackle.Consumer,
-      rabbitmq_url: "amqp://localhost",
+      rabbitmq_url: @rabbitmq_url,
       remote_exchange: "ex-tackle.test-prefetch-2-exchange",
       routing_key: "prefetch",
       service: "ex-tackle.prefetch-count-service",
@@ -21,7 +23,7 @@ defmodule Tackle.ParallelMessageHandling_2_Test do
   end
 
   @publish_options %{
-    rabbitmq_url: "amqp://localhost",
+    rabbitmq_url: Application.compile_env(:tackle, :rabbitmq_url),
     exchange: "ex-tackle.test-prefetch-2-exchange",
     routing_key: "prefetch"
   }

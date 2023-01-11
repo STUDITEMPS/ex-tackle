@@ -2,6 +2,8 @@ defmodule Tackle.ConnectionTest do
   use ExUnit.Case
   doctest Tackle.Connection, import: true
 
+  @rabbitmq_url Application.compile_env(:tackle, :rabbitmq_url)
+
   setup do
     Tackle.Connection.reset()
   end
@@ -23,7 +25,7 @@ defmodule Tackle.ConnectionTest do
   end
 
   def get_connection_pid(name) do
-    Tackle.Connection.open(name, []) |> get_pid
+    Tackle.Connection.open(name, @rabbitmq_url) |> get_pid
   end
 
   def get_pid({:ok, connection}) do

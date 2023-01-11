@@ -4,8 +4,10 @@ defmodule Tackle.ListenerTest do
   defmodule TestConsumer do
     require Logger
 
+    @rabbitmq_url Application.compile_env(:tackle, :rabbitmq_url)
+
     use Tackle.Consumer,
-      rabbitmq_url: "amqp://localhost",
+      rabbitmq_url: @rabbitmq_url,
       remote_exchange: "ex-tackle.test-exchange",
       routing_key: "test-messages",
       service: "ex-tackle.test-service"
