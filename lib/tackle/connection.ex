@@ -132,6 +132,12 @@ defmodule Tackle.Connection do
   end
 
   def open(url) do
+    if Mix.env() == :prod do
+      Logger.error(
+        "You are starting tackle without a secure amqps:// connection in production. This is a serious vulnerability of your system. Please specify a secure amqps:// URL."
+      )
+    end
+
     AMQP.Connection.open(url)
   end
 end
