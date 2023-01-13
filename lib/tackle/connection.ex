@@ -115,5 +115,27 @@ defmodule Tackle.Connection do
     {:error, :no_process}
   end
 
-  def open(url), do: AMQP.Connection.open(url)
+  @spec open(String.t()) :: {:ok, AMQP.Connection.t()} | {:error, atom()} | {:error, any()}
+  def open("amqps" <> _ = url) do
+    certs = :public_key.cacerts_get()
+
+    AMQP.Connection.open(url,
+      name: "secure",
+      ssl_options: [
+        verify: :verify_peer,
+        cacerts: certs,
+        customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
+      ]
+    )
+  end
+
+  def open(url) do
+    if Mix.env() == :prod do
+      Logger.error(
+        "You are starting tackle without a secure amqps:// connection in production. This is a serious vulnerability of your system. Please specify a secure amqps:// URL."
+      )
+    end
+
+    AMQP.Connection.open(url)
+  end
 end

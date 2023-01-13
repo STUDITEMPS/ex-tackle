@@ -33,7 +33,7 @@ defmodule Tackle do
   @doc false
   def execute(rabbitmq_url, fun) when is_binary(rabbitmq_url) and is_function(fun, 1) do
     Logger.debug("Connecting to '#{Tackle.DebugHelper.safe_uri(rabbitmq_url)}'")
-    {:ok, connection} = AMQP.Connection.open(rabbitmq_url)
+    {:ok, connection} = Tackle.Connection.open(rabbitmq_url)
     {:ok, channel} = AMQP.Channel.open(connection)
 
     try do
