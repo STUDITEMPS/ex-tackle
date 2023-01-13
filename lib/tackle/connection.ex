@@ -116,8 +116,6 @@ defmodule Tackle.Connection do
   end
 
   @spec open(String.t()) :: {:ok, AMQP.Connection.t()} | {:error, atom()} | {:error, any()}
-  # Saving OS certs during compile time. Fetching them during runtime results in
-  # a {:EXIT, #Port<0.44>, :normal} message received by the Executor GenServer.
   def open("amqps" <> _ = url) do
     certs = :public_key.cacerts_get()
 

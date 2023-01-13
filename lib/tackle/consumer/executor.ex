@@ -97,6 +97,8 @@ defmodule Tackle.Consumer.Executor do
   end
 
   # This message is received because of fetching OS certificates during connection opening in Tackle.Connection.open/1
+  # It seems to only happen on darwin systems due to the way the certificates are accessed, see here:
+  # https://github.com/erlang/otp/blob/0f4345094b9a57c4166c695b7acbb6087df7e444/lib/public_key/src/pubkey_os_cacerts.erl#L133
   def handle_info({:EXIT, _port, :normal}, state) do
     {:noreply, state}
   end
