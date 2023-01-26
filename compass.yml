@@ -1,0 +1,19 @@
+name: ex-tackle
+id: 'ari:cloud:compass:e1d41f8a-4a61-4fa9-80d9-a0967619f2ea:component/e8fcfeae-19d1-4cce-9554-6226e62cd618/98b437b3-167b-4e81-9c06-5691a8a4741c'
+description: "\U0001F4AF percent reliable microservice communication"
+ownerId: 'ari:cloud:teams::team/02f444fe-c2c0-4af5-a033-cb345c5f2324'
+fields: {}
+links:
+  - name: null
+    type: REPOSITORY
+    url: 'https://github.com/STUDITEMPS/ex-tackle'
+  - name: Around Room
+    type: CHAT_CHANNEL
+    url: 'https://around.co/r/jv-finopstech'
+  - name: Elixir Slack Channel
+    type: CHAT_CHANNEL
+    url: 'https://jobvalley.slack.com/archives/C6VS88M42'
+relationships: {}
+
+# Learn more about formatting compass.yml:
+# https://go.atlassian.com/compass-yml-format
