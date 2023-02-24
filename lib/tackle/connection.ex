@@ -30,6 +30,10 @@ defmodule Tackle.Connection do
     do_open(name, url)
   end
 
+  def open(url) do
+    open(:default, url)
+  end
+
   def close(conn) do
     AMQP.Connection.close(conn)
   end
@@ -52,7 +56,7 @@ defmodule Tackle.Connection do
   end
 
   defp do_open(name = :default, url) do
-    connection = open(url)
+    connection = uncached_open_connection(url, name)
     Logger.info("Opening new connection #{inspect(connection)} for id: #{name}")
     connection
   end
@@ -73,7 +77,7 @@ defmodule Tackle.Connection do
   end
 
   defp open_and_persist(name, url) do
-    case open(url) do
+    case uncached_open_connection(url, name) do
       response = {:ok, connection} ->
         Agent.update(__MODULE__, fn state -> Map.put(state, name, connection) end)
         Logger.debug("Opening new connection #{inspect(connection)} for id: #{name}")
@@ -115,12 +119,15 @@ defmodule Tackle.Connection do
     {:error, :no_process}
   end
 
-  @spec open(String.t()) :: {:ok, AMQP.Connection.t()} | {:error, atom()} | {:error, any()}
-  def open("amqps" <> _ = url) do
+  defp uncached_open_connection(url, :default) do
+    uncached_open_connection(url, "short_lived_tackle_connection")
+  end
+
+  defp uncached_open_connection("amqps" <> _ = url, name) do
     certs = :public_key.cacerts_get()
 
     AMQP.Connection.open(url,
-      name: "secure",
+      name: to_string(name),
       ssl_options: [
         verify: :verify_peer,
         cacerts: certs,
@@ -129,13 +136,13 @@ defmodule Tackle.Connection do
     )
   end
 
-  def open(url) do
+  defp uncached_open_connection(url, name) do
     if Mix.env() == :prod do
       Logger.error(
         "You are starting tackle without a secure amqps:// connection in production. This is a serious vulnerability of your system. Please specify a secure amqps:// URL."
       )
     end
 
-    AMQP.Connection.open(url)
+    AMQP.Connection.open(url, name: to_string(name))
   end
 end
