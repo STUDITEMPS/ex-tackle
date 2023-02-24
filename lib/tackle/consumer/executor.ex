@@ -21,47 +21,94 @@ defmodule Tackle.Consumer.Executor do
     state =
       options
       |> Tackle.Consumer.State.configure!()
-      |> setup!()
 
-    {:ok, state}
+    {:ok, state, {:continue, :try_setup}}
   end
 
-  defp setup!(%{topology: topology} = state) do
-    {:ok, channel} =
-      setup_connection_channel(
-        state.connection_id,
-        state.rabbitmq_url,
-        state.prefetch_count
-      )
-
-    Tackle.Consumer.Topology.setup!(channel, topology)
-
-    # start actual consuming
-    {:ok, _consumer_tag} = AMQP.Basic.consume(channel, topology.queue)
-
-    # Sleep is needed for the ConnectionErrorsTest
-    Process.sleep(2)
-
-    Tackle.Consumer.State.started(state, channel: channel)
+  # Try to open channel and setup topology
+  def handle_continue(:try_setup, %{channel: channel, consumer_tag: nil} = state)
+      when not is_nil(channel) do
+    {:noreply, state, {:continue, :try_consume}}
   end
 
-  defp setup_connection_channel(connection_id, url, prefetch_count) do
-    with {:ok, connection} <- Tackle.Connection.open(connection_id, url) do
+  def handle_continue(:try_setup, %{channel: channel} = state) when not is_nil(channel) do
+    {:noreply, state}
+  end
+
+  def handle_continue(:try_setup, %{channel_retry_ref: ref} = state) when is_reference(ref) do
+    {:noreply, state}
+  end
+
+  def handle_continue(
+        :try_setup,
+        %{
+          connection_id: connection_name,
+          rabbitmq_url: rabbitmq_url,
+          prefetch_count: prefetch_count,
+          topology: topology,
+          reconnect_interval: reconnect_interval
+        } = state
+      ) do
+    with {:ok, connection} <- Tackle.Connection.open(connection_name, rabbitmq_url),
+         {:ok, channel} <- Tackle.Channel.create(connection, prefetch_count) do
       # Get notifications when the connection goes down
-      Process.monitor(connection.pid)
-      channel = Tackle.Channel.create(connection, prefetch_count)
-      {:ok, channel}
+      Process.monitor(channel.pid)
+      Tackle.Consumer.Topology.setup!(channel, topology)
+
+      {:noreply, %{state | channel: channel, channel_retry_ref: nil}, {:continue, :try_consume}}
+    else
+      {:error, reason} ->
+        Logger.error("Failed to setup channel: #{inspect(reason)}")
+        ref = Process.send_after(self(), :setup_retry_timeout, reconnect_interval)
+        {:noreply, %{state | channel_retry_ref: ref}}
     end
   end
 
-  # Close channel on exit
-  def terminate(_reason, state) do
-    state.channel |> Tackle.Channel.close()
+  # Try to start consumption
+  def handle_continue(:try_consume, %{consume_retry_ref: nil} = state) do
+    %{channel: channel, topology: topology, reconnect_interval: reconnect_interval} = state
+
+    with {:ok, consumer_tag} <- AMQP.Basic.consume(channel, topology.queue) do
+      {:noreply, %{state | consumer_tag: consumer_tag}}
+    else
+      {:error, reason} ->
+        Logger.error("Failed to start consumption: #{inspect(reason)}")
+        ref = Process.send_after(self(), :consume_retry_timeout, reconnect_interval)
+        {:noreply, %{state | consume_retry_ref: ref}}
+    end
   end
 
-  def handle_info({:basic_consume_ok, _}, state), do: {:noreply, state}
-  def handle_info({:basic_cancel, _}, state), do: {:stop, :normal, state}
-  def handle_info({:basic_cancel_ok, _}, state), do: {:stop, :normal, state}
+  def handle_continue(:try_consume, state), do: {:noreply, state}
+
+  # Retry opening channel and setup topology
+  def handle_info(:setup_retry_timeout, state = %{channel_retry_ref: nil}), do: {:noreply, state}
+
+  def handle_info(:setup_retry_timeout, state = %{channel_retry_ref: ref})
+      when is_reference(ref) do
+    {:noreply, %{state | channel_retry_ref: nil}, {:continue, :try_setup}}
+  end
+
+  # Retry start consumption
+  def handle_info(:consume_retry_timeout, state = %{consume_retry_ref: nil}),
+    do: {:noreply, state}
+
+  def handle_info(:consume_retry_timeout, state = %{consume_retry_ref: ref})
+      when is_reference(ref) do
+    {:noreply, %{state | consume_retry_ref: nil}, {:continue, :try_consume}}
+  end
+
+  # Consume messages
+  def handle_info({:basic_consume_ok, _}, state) do
+    {:noreply, state}
+  end
+
+  def handle_info({:basic_cancel, _}, state) do
+    {:stop, :normal, state}
+  end
+
+  def handle_info({:basic_cancel_ok, _}, state) do
+    {:stop, :normal, state}
+  end
 
   def handle_info({:basic_deliver, payload, %{delivery_tag: tag} = message_metadata}, state) do
     # try/rescue/catch stattdessen benutzen
@@ -83,24 +130,40 @@ defmodule Tackle.Consumer.Executor do
 
   # Called if a monitored connection dies.
   def handle_info(
-        {:DOWN, _, :process, pid, reason},
-        %Tackle.Consumer.State{
-          channel: %AMQP.Channel{conn: %AMQP.Connection{pid: pid}},
+        {:DOWN, _ref, :process, channel_pid, reason},
+        %{
+          channel: %AMQP.Channel{pid: channel_pid},
           topology: topology
         } = state
       ) do
     Logger.warn(
-      "Connection process went down (#{inspect(reason)}). Stopping Consumer for queue #{topology.queue}"
+      "Connection process went down (#{inspect(reason)}). Restarting consumer for queue #{topology.queue}"
     )
 
-    {:stop, {:connection_lost, reason}, state}
+    state = %{state | channel: nil, channel_retry_ref: nil, consumer_tag: nil}
+    {:noreply, state, {:continue, :try_setup}}
   end
+
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state), do: {:noreply, state}
 
   # This message is received because of fetching OS certificates during connection opening in Tackle.Connection.open/1
   # It seems to only happen on darwin systems due to the way the certificates are accessed, see here:
   # https://github.com/erlang/otp/blob/0f4345094b9a57c4166c695b7acbb6087df7e444/lib/public_key/src/pubkey_os_cacerts.erl#L133
   def handle_info({:EXIT, _port, :normal}, state) do
     {:noreply, state}
+  end
+
+  # Close channel on exit
+  def terminate(reason, %{channel: channel, consumer_tag: consumer_tag}) do
+    unless is_nil(consumer_tag) do
+      AMQP.Basic.cancel(channel, consumer_tag)
+    end
+
+    unless is_nil(channel) do
+      Tackle.Channel.close(channel)
+    end
+
+    reason
   end
 
   def delivery_handler(consume_callback, error_callback) do

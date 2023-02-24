@@ -21,6 +21,25 @@ defmodule Support do
     end
   end
 
+  defmacro start_consumer!(consumer) do
+    quote do
+      pid = start_supervised!(unquote(consumer))
+      assert Process.alive?(pid)
+
+      Support.wait_consumer_ready(pid)
+      pid
+    end
+  end
+
+  defmacro wait_consumer_ready(pid) do
+    quote do
+      Support.wait_until(fn ->
+        %{consumer_tag: consumer_tag} = :sys.get_state(unquote(pid))
+        refute is_nil(consumer_tag)
+      end)
+    end
+  end
+
   def rabbitmq_list_exchanges() do
     RabbitmqAPI.list_exchanges().body |> Enum.map(fn %{"name" => name} -> name end)
   end
@@ -79,6 +98,20 @@ defmodule Support do
 
   defp execute(fun) when is_function(fun, 1) do
     Tackle.execute(@rabbitmq_url, fun)
+  end
+
+  def wait_until(fun), do: wait_until(500, fun)
+
+  def wait_until(0, fun), do: fun.()
+
+  def wait_until(timeout, fun) do
+    try do
+      fun.()
+    rescue
+      ExUnit.AssertionError ->
+        :timer.sleep(100)
+        wait_until(max(0, timeout - 100), fun)
+    end
   end
 
   defmodule MessageTrace do

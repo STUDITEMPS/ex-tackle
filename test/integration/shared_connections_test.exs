@@ -1,5 +1,6 @@
 defmodule Tackle.SharedConnection.Test do
   use ExSpec
+  require Support
 
   @rabbitmq_url Application.compile_env(:tackle, :rabbitmq_url)
 
@@ -14,7 +15,7 @@ defmodule Tackle.SharedConnection.Test do
       connection_id: :single_connection
 
     def handle_message(message) do
-      Tackle.SharedConnection.Test.message_handler(message, "consumer_1")
+      Application.put_env(:tackle, :shared_connection_test_consumer_1_message, message)
     end
   end
 
@@ -29,7 +30,7 @@ defmodule Tackle.SharedConnection.Test do
       connection_id: :single_connection
 
     def handle_message(message) do
-      Tackle.SharedConnection.Test.message_handler(message, "consumer_2")
+      Application.put_env(:tackle, :shared_connection_test_consumer_2_message, message)
     end
   end
 
@@ -71,6 +72,8 @@ defmodule Tackle.SharedConnection.Test do
     it "- reopen consumers" do
       {:ok, c1} = TestConsumer1.start_link()
       {:ok, c2} = TestConsumer2.start_link()
+      Support.wait_consumer_ready(c1)
+      Support.wait_consumer_ready(c2)
 
       # only one connection opend
       assert Tackle.Connection.get_all() |> Enum.count() == 1
@@ -89,8 +92,10 @@ defmodule Tackle.SharedConnection.Test do
       old_pid |> Process.exit(:kill)
 
       # restart consumers
-      {:ok, _} = TestConsumer1.start_link()
-      {:ok, _} = TestConsumer2.start_link()
+      {:ok, c1} = TestConsumer1.start_link()
+      {:ok, c2} = TestConsumer2.start_link()
+      Support.wait_consumer_ready(c1)
+      Support.wait_consumer_ready(c2)
 
       # new connection process?
       assert Tackle.Connection.get_all() |> Enum.count() == 1
@@ -101,12 +106,16 @@ defmodule Tackle.SharedConnection.Test do
     end
 
     def verify_consumer_functionality do
-      Tackle.publish(self() |> inspect, @publish_options_1)
-      Tackle.publish(self() |> inspect, @publish_options_2)
+      me_pid_string = self() |> inspect()
+      Tackle.publish(me_pid_string, @publish_options_1)
+      Tackle.publish(me_pid_string, @publish_options_2)
 
-      response = rcv() <> rcv()
-      assert String.contains?(response, "consumer_1")
-      assert String.contains?(response, "consumer_2")
+      Support.wait_until(5_000, fn ->
+        assert Application.get_env(:tackle, :shared_connection_test_consumer_1_message) == me_pid_string
+      end)
+      Support.wait_until(5_000, fn ->
+        assert Application.get_env(:tackle, :shared_connection_test_consumer_2_message) == me_pid_string
+      end)
     end
 
     def get_all_connections do
