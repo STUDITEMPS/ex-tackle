@@ -14,8 +14,11 @@ defmodule Tackle.ConnectionTest do
   end
 
   test "non default connection name returns same process for each call" do
-    pid = get_connection_pid(:foo)
-    assert get_connection_pid(:foo) == pid
+    tasks = 1..3 |> Enum.map(fn _ ->
+      Task.async(fn -> get_connection_pid(:foo) end)
+    end)
+    [first_process_pid | pids] = Task.await_many(tasks)
+    assert Enum.all?(pids, &(&1 == first_process_pid))
   end
 
   test "connection process died -> create new one" do
@@ -25,7 +28,7 @@ defmodule Tackle.ConnectionTest do
   end
 
   def get_connection_pid(name) do
-    Tackle.Connection.open(name, @rabbitmq_url) |> get_pid
+    Tackle.Connection.open(name, @rabbitmq_url) |> get_pid()
   end
 
   def get_pid({:ok, connection}) do
