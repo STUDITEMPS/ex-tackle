@@ -113,7 +113,7 @@ defmodule Tackle.Connection do
       {:ok, connection}
     else
       error ->
-        Logger.error("Failed to open new secure connection(name: `#{name}`): `#{inspect(error)}`")
+        Logger.error("Failed to open new secure connection(name: `#{name}`) due to `#{inspect(error)}`")
         error
     end
   end
@@ -131,7 +131,7 @@ defmodule Tackle.Connection do
     else
       error ->
         Logger.error(
-          "Failed to open new insecure connection(name: `#{name}`): `#{inspect(error)}`"
+          "Failed to open new insecure connection(name: `#{name}`) due to `#{inspect(error)}`"
         )
 
         error

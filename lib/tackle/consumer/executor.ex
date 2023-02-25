@@ -46,7 +46,8 @@ defmodule Tackle.Consumer.Executor do
           rabbitmq_url: rabbitmq_url,
           prefetch_count: prefetch_count,
           topology: topology,
-          reconnect_interval: reconnect_interval
+          reconnect_interval: reconnect_interval,
+          handler: handler_module
         } = state
       ) do
     with {:ok, connection} <- Tackle.Connection.open(connection_name, rabbitmq_url),
@@ -57,8 +58,8 @@ defmodule Tackle.Consumer.Executor do
 
       {:noreply, %{state | channel: channel, channel_retry_ref: nil}, {:continue, :try_consume}}
     else
-      {:error, reason} ->
-        Logger.error("Failed to setup channel: #{inspect(reason)}")
+      {:error, _} = error ->
+        Logger.error("#{handler_module} failed to setup channel due to `#{inspect(error)}`")
         ref = Process.send_after(self(), :setup_retry_timeout, reconnect_interval)
         {:noreply, %{state | channel_retry_ref: ref}}
     end
@@ -66,13 +67,21 @@ defmodule Tackle.Consumer.Executor do
 
   # Try to start consumption
   def handle_continue(:try_consume, %{consume_retry_ref: nil} = state) do
-    %{channel: channel, topology: topology, reconnect_interval: reconnect_interval} = state
+    %{
+      channel: channel,
+      topology: topology,
+      reconnect_interval: reconnect_interval,
+      handler: handler_module
+    } = state
 
     with {:ok, consumer_tag} <- AMQP.Basic.consume(channel, topology.queue) do
       {:noreply, %{state | consumer_tag: consumer_tag}}
     else
-      {:error, reason} ->
-        Logger.error("Failed to start consumption: #{inspect(reason)}")
+      {:error, _} = error ->
+        Logger.error(
+          "#{handler_module} failed to start consumption from `#{topology.queue}` due to `#{inspect(error)}`"
+        )
+
         ref = Process.send_after(self(), :consume_retry_timeout, reconnect_interval)
         {:noreply, %{state | consume_retry_ref: ref}}
     end
@@ -98,7 +107,8 @@ defmodule Tackle.Consumer.Executor do
   end
 
   # Consume messages
-  def handle_info({:basic_consume_ok, _}, state) do
+  def handle_info({:basic_consume_ok, _}, %{handler: handler_module, topology: topology} = state) do
+    Logger.info("#{handler_module} started consuming messages from `#{topology.queue}`")
     {:noreply, state}
   end
 
@@ -118,7 +128,7 @@ defmodule Tackle.Consumer.Executor do
     end
 
     error_callback = fn reason ->
-      Logger.error("Consumption failed: #{inspect(reason)}; payload: #{inspect(payload)}")
+      Logger.error("Consumption failed: `#{inspect(reason)}`; payload: `#{inspect(payload)}`")
       retry(state, payload, message_metadata, reason)
       :ok = AMQP.Basic.nack(state.channel, tag, multiple: false, requeue: false)
     end
@@ -133,11 +143,12 @@ defmodule Tackle.Consumer.Executor do
         {:DOWN, _ref, :process, channel_pid, reason},
         %{
           channel: %AMQP.Channel{pid: channel_pid},
-          topology: topology
+          topology: topology,
+          handler: handler_module
         } = state
       ) do
     Logger.warn(
-      "Connection process went down (#{inspect(reason)}). Restarting consumer for queue #{topology.queue}"
+      "#{handler_module} channel process went down due to `#{inspect(reason)}`. Reconnecting to `#{topology.queue}`."
     )
 
     state = %{state | channel: nil, channel_retry_ref: nil, consumer_tag: nil}
