@@ -60,7 +60,7 @@ defmodule Tackle.Consumer.Executor do
     else
       {:error, _} = error ->
         Logger.error("#{handler_module} failed to setup channel due to `#{inspect(error)}`")
-        ref = Process.send_after(self(), :setup_retry_timeout, reconnect_interval)
+        ref = Process.send_after(self(), :retry_setup_after_delay, reconnect_interval)
         {:noreply, %{state | channel_retry_ref: ref}}
     end
   end
@@ -82,7 +82,7 @@ defmodule Tackle.Consumer.Executor do
           "#{handler_module} failed to start consumption from `#{topology.queue}` due to `#{inspect(error)}`"
         )
 
-        ref = Process.send_after(self(), :consume_retry_timeout, reconnect_interval)
+        ref = Process.send_after(self(), :retry_consume_after_delay, reconnect_interval)
         {:noreply, %{state | consume_retry_ref: ref}}
     end
   end
@@ -90,18 +90,18 @@ defmodule Tackle.Consumer.Executor do
   def handle_continue(:try_consume, state), do: {:noreply, state}
 
   # Retry opening channel and setup topology
-  def handle_info(:setup_retry_timeout, state = %{channel_retry_ref: nil}), do: {:noreply, state}
+  def handle_info(:retry_setup_after_delay, state = %{channel_retry_ref: nil}), do: {:noreply, state}
 
-  def handle_info(:setup_retry_timeout, state = %{channel_retry_ref: ref})
+  def handle_info(:retry_setup_after_delay, state = %{channel_retry_ref: ref})
       when is_reference(ref) do
     {:noreply, %{state | channel_retry_ref: nil}, {:continue, :try_setup}}
   end
 
   # Retry start consumption
-  def handle_info(:consume_retry_timeout, state = %{consume_retry_ref: nil}),
+  def handle_info(:retry_consume_after_delay, state = %{consume_retry_ref: nil}),
     do: {:noreply, state}
 
-  def handle_info(:consume_retry_timeout, state = %{consume_retry_ref: ref})
+  def handle_info(:retry_consume_after_delay, state = %{consume_retry_ref: ref})
       when is_reference(ref) do
     {:noreply, %{state | consume_retry_ref: nil}, {:continue, :try_consume}}
   end
