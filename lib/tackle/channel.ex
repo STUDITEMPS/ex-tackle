@@ -2,14 +2,22 @@ defmodule Tackle.Channel do
   @default_prefetch_count 1
 
   def create(connection, prefetch_count \\ @default_prefetch_count) do
-    {:ok, channel} = AMQP.Channel.open(connection)
+    with {:ok, channel} <- AMQP.Channel.open(connection),
+         :ok <- AMQP.Basic.qos(channel, prefetch_count: prefetch_count) do
+      {:ok, channel}
+    end
+  end
 
-    :ok = AMQP.Basic.qos(channel, prefetch_count: prefetch_count)
-
+  def create!(connection, prefetch_count \\ @default_prefetch_count) do
+    {:ok, channel} = create(connection, prefetch_count)
     channel
   end
 
   def close(channel) do
-    :ok = AMQP.Channel.close(channel)
+    AMQP.Channel.close(channel)
+  end
+
+  def close!(channel) do
+    :ok = close(channel)
   end
 end

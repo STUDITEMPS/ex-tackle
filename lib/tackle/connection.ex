@@ -20,14 +20,58 @@ defmodule Tackle.Connection do
     Agent.start_link(fn -> cache end, opts)
   end
 
+  # Open a new connection without caching it
+  def open(url) do
+    open(:default, url)
+  end
+
   @doc """
+  Open a new connection without caching it
+
   Examples:
       open(:default, [])
 
       open(:foo, [])
   """
+  def open(:default, url) do
+    uncached_open_connection(url, _management_interface_name = "short_lived_tackle_connection")
+  end
+
   def open(name, url) do
-    do_open(name, url)
+    Agent.get_and_update(__MODULE__, fn connection_cache ->
+      connection_cache
+      |> Map.get(name)
+      |> case do
+        nil ->
+          with {:ok, connection} <- uncached_open_connection(url, name) do
+            connection_cache = Map.put(connection_cache, name, connection)
+            {{:ok, connection}, connection_cache}
+          else
+            error ->
+              {error, connection_cache}
+          end
+
+        connection ->
+          if Process.alive?(connection.pid) do
+            Logger.debug("Fetched existing connection #{inspect(connection)}(name: `#{name}`)")
+            {{:ok, connection}, connection_cache}
+          else
+            connection_cache = Map.delete(connection_cache, name)
+
+            Logger.debug(
+              "Existing connection #{inspect(connection)}(name: `#{name}`) died, reconnecting..."
+            )
+
+            with {:ok, connection} <- uncached_open_connection(url, name) do
+              connection_cache = Map.put(connection_cache, name, connection)
+              {{:ok, connection}, connection_cache}
+            else
+              error ->
+                {error, connection_cache}
+            end
+          end
+      end
+    end)
   end
 
   def close(conn) do
@@ -51,91 +95,46 @@ defmodule Tackle.Connection do
     Agent.get(__MODULE__, fn state -> state |> Map.to_list() end)
   end
 
-  defp do_open(name = :default, url) do
-    connection = open(url)
-    Logger.info("Opening new connection #{inspect(connection)} for id: #{name}")
-    connection
-  end
+  defp uncached_open_connection("amqps" <> _ = url, name) do
+    certs = :public_key.cacerts_get()
 
-  defp do_open(name, url) do
-    Agent.get(__MODULE__, fn state -> Map.get(state, name) end)
-    |> case do
-      nil ->
-        open_and_persist(name, url)
-
-      connection ->
-        Logger.info("Fetched existing connection #{inspect(connection)} for id: #{name}")
-
-        connection
-        |> validate(name)
-        |> reopen_on_validation_failure(name, url)
-    end
-  end
-
-  defp open_and_persist(name, url) do
-    case open(url) do
-      response = {:ok, connection} ->
-        Agent.update(__MODULE__, fn state -> Map.put(state, name, connection) end)
-        Logger.debug("Opening new connection #{inspect(connection)} for id: #{name}")
-        response
-
+    with {:ok, connection} <-
+           AMQP.Connection.open(url,
+             name: to_string(name),
+             ssl_options: [
+               verify: :verify_peer,
+               cacerts: certs,
+               customize_hostname_check: [
+                 match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+               ]
+             ]
+           ) do
+      Logger.info("Opened new secure connection #{inspect(connection)}(name: `#{name}`)")
+      {:ok, connection}
+    else
       error ->
-        Logger.error("Failed to open new connection for id: #{name}: #{inspect(error)}")
+        Logger.error("Failed to open new secure connection(name: `#{name}`) due to `#{inspect(error)}`")
         error
     end
   end
 
-  defp validate(connection, name) do
-    connection.pid |> validate_connection_process(connection, name)
-  end
-
-  def reopen_on_validation_failure(state = {:error, _}, name, url) do
-    Logger.warn("Connection validation failed #{inspect(state)} for id: #{name}")
-    Agent.update(__MODULE__, fn state -> Map.delete(state, name) end)
-    open(name, url)
-  end
-
-  def reopen_on_validation_failure(connection, _name, _url) do
-    {:ok, connection}
-  end
-
-  defp validate_connection_process(pid, connection, name) when is_pid(pid) do
-    pid |> Process.alive?() |> validate_connection_process_rh(connection, name)
-  end
-
-  defp validate_connection_process(_pid, connection, name) do
-    false |> validate_connection_process_rh(connection, name)
-  end
-
-  defp validate_connection_process_rh(_alive? = true, connection, _name) do
-    connection
-  end
-
-  defp validate_connection_process_rh(_alive? = false, _connection, _name) do
-    {:error, :no_process}
-  end
-
-  @spec open(String.t()) :: {:ok, AMQP.Connection.t()} | {:error, atom()} | {:error, any()}
-  def open("amqps" <> _ = url) do
-    certs = :public_key.cacerts_get()
-
-    AMQP.Connection.open(url,
-      name: "secure",
-      ssl_options: [
-        verify: :verify_peer,
-        cacerts: certs,
-        customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
-      ]
-    )
-  end
-
-  def open(url) do
+  defp uncached_open_connection(url, name) do
     if Mix.env() == :prod do
       Logger.error(
         "You are starting tackle without a secure amqps:// connection in production. This is a serious vulnerability of your system. Please specify a secure amqps:// URL."
       )
     end
 
-    AMQP.Connection.open(url)
+    with {:ok, connection} <- AMQP.Connection.open(url, name: to_string(name)) do
+      Logger.info("Opened new insecure connection #{inspect(connection)}(name: `#{name}`)")
+      {:ok, connection}
+    else
+      error ->
+        Logger.error(
+          "Failed to open new insecure connection(name: `#{name}`) due to `#{inspect(error)}`"
+        )
+
+        error
+    end
   end
 end

@@ -11,6 +11,10 @@ defmodule Tackle.Consumer.State do
     :topology,
     :channel,
     :rabbitmq_url,
+    :consumer_tag,
+    :channel_retry_ref,
+    :consume_retry_ref,
+    reconnect_interval: 1_000,
     connection_id: :default,
     prefetch_count: 1
   ]
@@ -21,7 +25,4 @@ defmodule Tackle.Consumer.State do
     struct(__MODULE__, options)
   end
 
-  def started(%__MODULE__{} = me, channel: channel) do
-    %{me | channel: channel}
-  end
 end
