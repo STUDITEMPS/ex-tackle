@@ -37,6 +37,8 @@ defmodule Tackle.Consumer do
 
         Supervisor.child_spec(default, [])
       end
+
+      defoverridable(child_spec: 1)
     end
   end
 
