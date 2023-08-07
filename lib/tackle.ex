@@ -39,8 +39,7 @@ defmodule Tackle do
     try do
       fun.(channel)
     after
-      AMQP.Channel.close(channel)
-      AMQP.Connection.close(connection)
+      Tackle.Connection.close(connection)
     end
   end
 end

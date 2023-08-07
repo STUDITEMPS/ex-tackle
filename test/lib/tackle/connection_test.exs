@@ -27,6 +27,19 @@ defmodule Tackle.ConnectionTest do
     assert get_connection_pid(:bar) != pid
   end
 
+  test "channel closed with connection" do
+    {:ok, connection} = Tackle.Connection.open(@rabbitmq_url)
+    {:ok, channel} = AMQP.Channel.open(connection)
+
+    assert Process.alive?(connection.pid)
+    assert Process.alive?(channel.pid)
+
+    Tackle.Connection.close(connection)
+
+    refute Process.alive?(connection.pid)
+    refute Process.alive?(channel.pid)
+  end
+
   def get_connection_pid(name) do
     Tackle.Connection.open(name, @rabbitmq_url) |> get_pid()
   end
