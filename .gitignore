@@ -5,3 +5,6 @@ erl_crash.dump
 *.ez
 /log
 .vscode
+
+.tool-versions
+.envrc
