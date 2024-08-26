@@ -10,6 +10,7 @@ defmodule Tackle.Mixfile do
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      test_paths: ["test"],
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: preferred_cli_env()
     ]
@@ -26,9 +27,9 @@ defmodule Tackle.Mixfile do
   defp deps do
     [
       {:amqp, "~> 3.2"},
-      {:ex_spec, "~> 2.0", only: :test},
-      {:excoveralls, "~> 0.10", only: :test},
-      {:tesla, "~> 1.4.1"}
+      {:ex_spec, "~> 2.0", only: [:test, :dev]},
+      {:excoveralls, "~> 0.10", only: [:test, :dev]},
+      {:tesla, "~> 1.4.1", only: [:test, :dev]}
     ]
   end
 

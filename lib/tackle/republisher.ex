@@ -3,7 +3,7 @@ defmodule Tackle.Republisher do
   require Logger
 
   def republish(rabbitmq_url, dead_queue_name, exchange, routing_key, count) do
-    Tackle.execute(rabbitmq_url, fn channel ->
+    Tackle.execute(rabbitmq_url, :default, fn channel ->
       0..(count - 1)
       |> Enum.each(fn _ ->
         republish_one_message(channel, dead_queue_name, exchange, routing_key)

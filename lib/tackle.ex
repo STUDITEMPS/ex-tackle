@@ -23,15 +23,21 @@ defmodule Tackle do
     rabbitmq_url = Map.fetch!(options, :rabbitmq_url)
     exchange = Map.fetch!(options, :exchange)
     routing_key = Map.fetch!(options, :routing_key)
+    connection_name = Map.get(options, :publisher_connection_name, :default)
 
-    execute(rabbitmq_url, fn channel ->
+    execute(rabbitmq_url, connection_name, fn channel ->
       Tackle.Exchange.create(channel, exchange)
       AMQP.Basic.publish(channel, exchange, routing_key, message, persistent: true)
     end)
   end
 
   @doc false
-  def execute(rabbitmq_url, fun) when is_binary(rabbitmq_url) and is_function(fun, 1) do
+  def execute(rabbitmq_url, fun) do
+    execute(rabbitmq_url, :default, fun)
+  end
+
+  @doc false
+  def execute(rabbitmq_url, :default, fun) when is_binary(rabbitmq_url) and is_function(fun, 1) do
     Logger.debug("Connecting to '#{Tackle.DebugHelper.safe_uri(rabbitmq_url)}'")
     {:ok, connection} = Tackle.Connection.open(rabbitmq_url)
     {:ok, channel} = AMQP.Channel.open(connection)
@@ -40,6 +46,20 @@ defmodule Tackle do
       fun.(channel)
     after
       Tackle.Connection.close(connection)
+    end
+  end
+
+  @doc false
+  def execute(rabbitmq_url, connection_name, fun)
+      when is_binary(rabbitmq_url) and is_function(fun, 1) do
+    Logger.debug("Connecting to '#{Tackle.DebugHelper.safe_uri(rabbitmq_url)}'")
+    {:ok, connection} = Tackle.Connection.open(connection_name, rabbitmq_url)
+    {:ok, channel} = AMQP.Channel.open(connection)
+
+    try do
+      fun.(channel)
+    after
+      Tackle.Channel.close(channel)
     end
   end
 end

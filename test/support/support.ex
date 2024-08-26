@@ -78,7 +78,7 @@ defmodule Support do
   end
 
   defp execute(fun) when is_function(fun, 1) do
-    Tackle.execute(@rabbitmq_url, fun)
+    Tackle.execute(@rabbitmq_url, :default, fun)
   end
 
   def wait_until(fun), do: wait_until(500, fun)
