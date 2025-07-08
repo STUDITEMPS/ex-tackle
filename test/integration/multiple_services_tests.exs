@@ -1,5 +1,5 @@
 defmodule Tackle.MultipleServicesTest do
-  use ExSpec
+  use ExUnit.Case
 
   alias Support.MessageTrace
 
@@ -71,7 +71,7 @@ defmodule Tackle.MultipleServicesTest do
   end
 
   describe "multiple services listening on the same exchange with the same routing_key" do
-    it "sends message to both services" do
+    test "sends message to both services" do
       Tackle.publish("Hi!", @publish_options)
 
       :timer.sleep(5000)
@@ -80,7 +80,7 @@ defmodule Tackle.MultipleServicesTest do
       assert MessageTrace.content("serviceB") |> String.contains?("Hi!")
     end
 
-    it "sends the message only once to the healthy service" do
+    test "sends the message only once to the healthy service" do
       Tackle.publish("Hi!", @publish_options)
 
       :timer.sleep(5000)
@@ -88,7 +88,7 @@ defmodule Tackle.MultipleServicesTest do
       assert MessageTrace.content("serviceA") == "Hi!"
     end
 
-    it "sends the message multiple times to the broken service" do
+    test "sends the message multiple times to the broken service" do
       Tackle.publish("Hi!", @publish_options)
 
       :timer.sleep(5000)
