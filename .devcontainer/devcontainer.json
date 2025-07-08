@@ -1,16 +1,11 @@
 {
-    "name": "Ex-Tackle",
     "dockerComposeFile": [
         "../docker-compose.yml",
         "docker-compose.yml"
     ],
     "service": "devcontainer",
-    "workspaceFolder": "/workspace",
-    "remoteEnv": {
-        "HEROKU_API_KEY": "${localEnv:FINOPSTECH_BOT_HEROKU_CLI_TOKEN}"
-    },
-    "onCreateCommand": ".devcontainer/bin/onCreateCommand",
-    "updateContentCommand": ".devcontainer/bin/updateContentCommand",
+    "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+    "postCreateCommand": ".devcontainer/bin/postCreateCommand",
     "customizations": {
         "codespaces": {
             "repositories": {

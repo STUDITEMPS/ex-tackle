@@ -1,0 +1,15 @@
+#!/bin/bash -ieu
+
+# install from .tool-versions
+asdf install
+
+# install rebar and hex, present in base image
+install-mix-tooling
+
+# prepare application
+mix deps.get
+mix compile
+MIX_ENV=test mix compile
+
+# import GitHub public key for git commit signature verification
+curl https://github.com/web-flow.gpg | gpg --import
