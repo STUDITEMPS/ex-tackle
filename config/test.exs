@@ -2,6 +2,8 @@ import Config
 
 config :logger, level: :warning
 
+config :tesla, disable_deprecated_builder_warning: true, adapter: Tesla.Adapter.Mint
+
 config :tackle,
   rabbitmq_host: System.get_env("RABBITMQ_HOST", "localhost"),
   rabbitmq_url:
