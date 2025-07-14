@@ -118,12 +118,18 @@ defmodule Tackle.Connection do
     end
   end
 
-  defp uncached_open_connection(url, name) do
-    if Mix.env() == :prod do
+  if Mix.env() == :prod do
+    defp warn_about_insecure_connection do
       Logger.error(
         "You are starting tackle without a secure amqps:// connection in production. This is a serious vulnerability of your system. Please specify a secure amqps:// URL."
       )
     end
+  else
+    defp warn_about_insecure_connection, do: :ok
+  end
+
+  defp uncached_open_connection(url, name) do
+    warn_about_insecure_connection()
 
     with {:ok, connection} <- AMQP.Connection.open(url, name: to_string(name)) do
       Logger.info("Opened new insecure connection #{inspect(connection)}(name: `#{name}`)")
