@@ -90,7 +90,8 @@ defmodule Tackle.Consumer.Executor do
   def handle_continue(:try_consume, state), do: {:noreply, state}
 
   # Retry opening channel and setup topology
-  def handle_info(:retry_setup_after_delay, state = %{channel_retry_ref: nil}), do: {:noreply, state}
+  def handle_info(:retry_setup_after_delay, state = %{channel_retry_ref: nil}),
+    do: {:noreply, state}
 
   def handle_info(:retry_setup_after_delay, state = %{channel_retry_ref: ref})
       when is_reference(ref) do
@@ -128,7 +129,6 @@ defmodule Tackle.Consumer.Executor do
     end
 
     error_callback = fn reason ->
-      Logger.error("Consumption failed: `#{inspect(reason)}`; payload: `#{inspect(payload)}`")
       retry(state, payload, message_metadata, reason)
       :ok = AMQP.Basic.nack(state.channel, tag, multiple: false, requeue: false)
     end
@@ -267,6 +267,10 @@ defmodule Tackle.Consumer.Executor do
       )
     else
       Logger.debug("Sending message to a dead messages queue")
+
+      Logger.error(
+        "Consumption failed: `#{inspect(error_reason)}`; payload: `#{inspect(payload)}`"
+      )
 
       Tackle.DelayedRetry.publish(
         state.rabbitmq_url,
