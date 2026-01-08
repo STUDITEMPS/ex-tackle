@@ -23,6 +23,7 @@ import Config
 
 # :direct || :fanout || :topic || :headers || :match
 # config :tackle, exchange_type: :topic
+config :tackle, warn_about_insecure_connection: config_env() == :prod
 
 # It is also possible to import configuration files, relative to this
 # directory. For example, you can emulate configuration per environment

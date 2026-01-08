@@ -113,16 +113,25 @@ defmodule Tackle.Connection do
       {:ok, connection}
     else
       error ->
-        Logger.error("Failed to open new secure connection(name: `#{name}`) due to `#{inspect(error)}`")
+        Logger.error(
+          "Failed to open new secure connection(name: `#{name}`) due to `#{inspect(error)}`"
+        )
+
         error
     end
   end
 
-  if Mix.env() == :prod do
+  if Application.compile_env(:tackle, :warn_about_insecure_connection, true) do
     defp warn_about_insecure_connection do
-      Logger.error(
-        "You are starting tackle without a secure amqps:// connection in production. This is a serious vulnerability of your system. Please specify a secure amqps:// URL."
-      )
+      Logger.error("""
+      You are starting tackle without a secure amqps:// connection. This is a serious vulnerability of your system.
+      Please specify a secure amqps:// URL.
+      To receive this warning only in production set `:warn_about_insecure_connection` like:
+
+        config :tackle, warn_about_insecure_connection: config_env() == :prod
+
+      or set it to false to disable the warning entirely.
+      """)
     end
   else
     defp warn_about_insecure_connection, do: :ok
