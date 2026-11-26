@@ -17,8 +17,6 @@ jobs:
             otp: 29.1.2
           - elixir: 1.18.x
             otp: 27
-          - elixir: 1.15.x
-            otp: 26
 
     env:
       APP_NAME: ex-tackle

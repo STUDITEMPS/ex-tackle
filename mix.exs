@@ -5,7 +5,7 @@ defmodule Tackle.Mixfile do
     [
       app: :tackle,
       version: "1.0.0",
-      elixir: "~> 1.15",
+      elixir: "~> 1.18",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
       deps: deps(),
