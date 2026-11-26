@@ -1,6 +1,8 @@
 defmodule Tackle.MultipleServicesTest do
   use ExUnit.Case
 
+  require Support
+
   alias Support.MessageTrace
 
   defmodule ServiceA do
@@ -61,11 +63,16 @@ defmodule Tackle.MultipleServicesTest do
       Support.cleanup!(ServiceB)
     end)
 
-    {:ok, _serviceA} = ServiceA.start_link()
-    {:ok, _serviceB} = ServiceB.start_link()
-
     MessageTrace.clear("serviceA")
     MessageTrace.clear("serviceB")
+
+    {:ok, service_a} = ServiceA.start_link()
+    {:ok, service_b} = ServiceB.start_link()
+
+    # publish only after both queues are bound to the exchange, otherwise the
+    # message is dropped
+    Support.wait_consumer_ready(service_a)
+    Support.wait_consumer_ready(service_b)
 
     :ok
   end
