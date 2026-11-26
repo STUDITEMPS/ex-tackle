@@ -10,11 +10,14 @@ defmodule Tackle.Mixfile do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
-      preferred_cli_env: preferred_cli_env(),
       elixirc_options: [warnings_as_errors: false],
       elixirc_paths: elixirc_paths(Mix.env()),
       test_paths: ["test"]
     ]
+  end
+
+  def cli do
+    [preferred_envs: preferred_cli_env()]
   end
 
   def application do
